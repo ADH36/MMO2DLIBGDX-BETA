@@ -11,6 +11,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.mmo.game.MMOGame;
+import com.mmo.graphics.AbilityEffect;
 import com.mmo.graphics.ParticleSystem;
 import com.mmo.graphics.PlayerAnimation;
 import com.mmo.models.Ability;
@@ -32,6 +33,7 @@ public class GameScreen implements Screen {
     private final ParticleSystem particleSystem;
     private final PlayerAnimation playerAnimation;
     private final Map<Long, PlayerAnimation> otherPlayerAnimations;
+    private final AbilityEffect abilityEffect;
     
     private Map<Long, Network.PlayerUpdate> otherPlayers;
     private Vector2 playerPosition;
@@ -64,6 +66,7 @@ public class GameScreen implements Screen {
         particleSystem = new ParticleSystem();
         playerAnimation = new PlayerAnimation();
         otherPlayerAnimations = new HashMap<>();
+        abilityEffect = new AbilityEffect();
         otherPlayers = new HashMap<>();
         
         playerPosition = new Vector2(playerData.getCharacter().getX(), playerData.getCharacter().getY());
@@ -134,9 +137,19 @@ public class GameScreen implements Screen {
     private void handleCombatEvent(Network.CombatEvent event) {
         StringBuilder message = new StringBuilder();
         
-        // Get target position for particle effects
+        // Get attacker and target positions for visual effects
+        float attackerX = playerPosition.x;
+        float attackerY = playerPosition.y;
         float targetX = playerPosition.x;
         float targetY = playerPosition.y;
+        
+        if (event.attackerId != playerData.getPlayerId()) {
+            Network.PlayerUpdate attacker = otherPlayers.get(event.attackerId);
+            if (attacker != null) {
+                attackerX = attacker.x;
+                attackerY = attacker.y;
+            }
+        }
         
         if (event.targetId != playerData.getPlayerId()) {
             Network.PlayerUpdate target = otherPlayers.get(event.targetId);
@@ -145,6 +158,10 @@ public class GameScreen implements Screen {
                 targetY = target.y;
             }
         }
+        
+        // Trigger ability visual effect
+        AbilityEffect.EffectType effectType = getEffectTypeForAbility(event.abilityName);
+        abilityEffect.start(attackerX, attackerY, targetX, targetY, event.abilityName, effectType);
         
         if (event.attackerId == playerData.getPlayerId()) {
             // You attacked someone
@@ -186,6 +203,21 @@ public class GameScreen implements Screen {
         if (message.length() > 0) {
             addChatMessage(message.toString());
             showCombatFeedback(message.toString());
+        }
+    }
+    
+    private AbilityEffect.EffectType getEffectTypeForAbility(String abilityName) {
+        if (abilityName == null) return AbilityEffect.EffectType.PROJECTILE;
+        
+        String lower = abilityName.toLowerCase();
+        if (lower.contains("meteor") || lower.contains("storm") || lower.contains("multi")) {
+            return AbilityEffect.EffectType.AREA;
+        } else if (lower.contains("beam") || lower.contains("teleport")) {
+            return AbilityEffect.EffectType.BEAM;
+        } else if (lower.contains("buff") || lower.contains("shield") || lower.contains("blessing")) {
+            return AbilityEffect.EffectType.BUFF;
+        } else {
+            return AbilityEffect.EffectType.PROJECTILE;
         }
     }
     
@@ -256,6 +288,9 @@ public class GameScreen implements Screen {
         // Update player animation
         boolean isMoving = playerVelocity.len() > 0;
         playerAnimation.update(delta, isMoving, playerVelocity.x, playerVelocity.y);
+        
+        // Update ability effects
+        abilityEffect.update(delta);
         
         // Update other player animations
         for (Map.Entry<Long, Network.PlayerUpdate> entry : otherPlayers.entrySet()) {
@@ -640,6 +675,9 @@ public class GameScreen implements Screen {
         
         // Draw particles first (under players)
         particleSystem.render(game.shapeRenderer);
+        
+        // Draw ability effects
+        abilityEffect.render(game.shapeRenderer);
         
         game.shapeRenderer.end();
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
