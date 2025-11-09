@@ -1,7 +1,9 @@
 package com.mmo.models;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Represents character data stored in the database
@@ -24,12 +26,14 @@ public class CharacterData {
     private List<Ability> abilities;
     private long[] abilityCooldowns; // Tracks when each ability can be used next (timestamp)
     private Inventory inventory;
+    private Map<EquipmentSlot, Item> equippedItems; // Currently equipped items
     
     public CharacterData() {
         // Default constructor for Kryo
         abilities = new ArrayList<>();
         abilityCooldowns = new long[4]; // Support up to 4 abilities
         inventory = new Inventory();
+        equippedItems = new HashMap<>();
     }
     
     public CharacterData(long id, String name, CharacterClass characterClass) {
@@ -50,6 +54,7 @@ public class CharacterData {
         this.abilities = new ArrayList<>();
         this.abilityCooldowns = new long[4];
         this.inventory = new Inventory();
+        this.equippedItems = new HashMap<>();
         initializeAbilities();
         initializeInventory();
     }
@@ -130,6 +135,37 @@ public class CharacterData {
     
     public Inventory getInventory() { return inventory; }
     public void setInventory(Inventory inventory) { this.inventory = inventory; }
+    
+    public Map<EquipmentSlot, Item> getEquippedItems() { return equippedItems; }
+    public void setEquippedItems(Map<EquipmentSlot, Item> equippedItems) { this.equippedItems = equippedItems; }
+    
+    /**
+     * Get equipped item in a specific slot
+     */
+    public Item getEquippedItem(EquipmentSlot slot) {
+        return equippedItems.get(slot);
+    }
+    
+    /**
+     * Equip an item to a specific slot
+     */
+    public void equipItem(EquipmentSlot slot, Item item) {
+        equippedItems.put(slot, item);
+    }
+    
+    /**
+     * Unequip an item from a specific slot
+     */
+    public Item unequipItem(EquipmentSlot slot) {
+        return equippedItems.remove(slot);
+    }
+    
+    /**
+     * Check if a slot has an equipped item
+     */
+    public boolean hasEquippedItem(EquipmentSlot slot) {
+        return equippedItems.containsKey(slot);
+    }
     
     /**
      * Check if an ability is off cooldown

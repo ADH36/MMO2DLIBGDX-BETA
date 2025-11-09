@@ -100,6 +100,10 @@ public class MMOServer {
             handleAttack(connection, (Network.AttackRequest) object);
         } else if (object instanceof Network.UseItemRequest) {
             handleUseItem(connection, (Network.UseItemRequest) object);
+        } else if (object instanceof Network.EquipItemRequest) {
+            handleEquipItem(connection, (Network.EquipItemRequest) object);
+        } else if (object instanceof Network.UnequipItemRequest) {
+            handleUnequipItem(connection, (Network.UnequipItemRequest) object);
         }
     }
     
@@ -533,6 +537,171 @@ public class MMOServer {
         
         System.out.println(character.getName() + " used " + item.getName() + 
                           " (HP: +" + healthRestored + ", MP: +" + manaRestored + ")");
+    }
+    
+    private void handleEquipItem(Connection connection, Network.EquipItemRequest request) {
+        PlayerData playerData = activePlayers.get(connection);
+        Network.EquipItemResponse response = new Network.EquipItemResponse();
+        
+        if (playerData == null) {
+            response.success = false;
+            response.message = "Player not found";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        CharacterData character = playerData.getCharacter();
+        com.mmo.models.Inventory inventory = character.getInventory();
+        com.mmo.models.InventoryItem invItem = inventory.getItemAtSlot(request.slotIndex);
+        
+        if (invItem == null) {
+            response.success = false;
+            response.message = "No item in this slot";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        com.mmo.models.Item item = invItem.getItem();
+        
+        // Check if item is equippable
+        if (item.getType() != com.mmo.models.ItemType.WEAPON && 
+            item.getType() != com.mmo.models.ItemType.ARMOR) {
+            response.success = false;
+            response.message = "This item cannot be equipped";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        // Determine equipment slot based on item type
+        com.mmo.models.EquipmentSlot slot = null;
+        if (item.getType() == com.mmo.models.ItemType.WEAPON) {
+            slot = com.mmo.models.EquipmentSlot.WEAPON;
+        } else if (item.getType() == com.mmo.models.ItemType.ARMOR) {
+            slot = com.mmo.models.EquipmentSlot.ARMOR;
+        }
+        
+        // Check if slot already has an item equipped
+        if (character.hasEquippedItem(slot)) {
+            com.mmo.models.Item equippedItem = character.getEquippedItem(slot);
+            
+            // Remove bonuses from previously equipped item
+            removeEquipmentBonuses(character, equippedItem);
+            
+            // Unequip and add back to inventory
+            character.unequipItem(slot);
+            if (!inventory.addItem(equippedItem, 1)) {
+                // If inventory is full, we can't swap
+                response.success = false;
+                response.message = "Inventory is full. Cannot swap equipment.";
+                // Re-apply the bonuses we removed
+                applyEquipmentBonuses(character, equippedItem);
+                character.equipItem(slot, equippedItem);
+                connection.sendTCP(response);
+                return;
+            }
+        }
+        
+        // Remove item from inventory and equip it
+        com.mmo.models.Item itemToEquip = inventory.removeItemFromSlot(request.slotIndex);
+        if (itemToEquip == null) {
+            response.success = false;
+            response.message = "Failed to remove item from inventory";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        character.equipItem(slot, itemToEquip);
+        
+        // Apply stat bonuses from newly equipped item
+        applyEquipmentBonuses(character, itemToEquip);
+        
+        response.success = true;
+        response.message = "Equipped " + itemToEquip.getName();
+        response.updatedCharacter = character;
+        connection.sendTCP(response);
+        
+        System.out.println(character.getName() + " equipped " + itemToEquip.getName());
+    }
+    
+    private void handleUnequipItem(Connection connection, Network.UnequipItemRequest request) {
+        PlayerData playerData = activePlayers.get(connection);
+        Network.UnequipItemResponse response = new Network.UnequipItemResponse();
+        
+        if (playerData == null) {
+            response.success = false;
+            response.message = "Player not found";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        CharacterData character = playerData.getCharacter();
+        com.mmo.models.Inventory inventory = character.getInventory();
+        
+        // Check if there's an item equipped in this slot
+        if (!character.hasEquippedItem(request.equipmentSlot)) {
+            response.success = false;
+            response.message = "No item equipped in this slot";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        // Check if inventory has space
+        if (!inventory.hasSpace()) {
+            response.success = false;
+            response.message = "Inventory is full";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        // Get equipped item and remove it
+        com.mmo.models.Item equippedItem = character.unequipItem(request.equipmentSlot);
+        
+        // Remove stat bonuses
+        removeEquipmentBonuses(character, equippedItem);
+        
+        // Add item back to inventory
+        if (!inventory.addItem(equippedItem, 1)) {
+            // If adding fails, re-equip the item
+            character.equipItem(request.equipmentSlot, equippedItem);
+            applyEquipmentBonuses(character, equippedItem);
+            response.success = false;
+            response.message = "Failed to add item to inventory";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        response.success = true;
+        response.message = "Unequipped " + equippedItem.getName();
+        response.updatedCharacter = character;
+        connection.sendTCP(response);
+        
+        System.out.println(character.getName() + " unequipped " + equippedItem.getName());
+    }
+    
+    /**
+     * Apply stat bonuses from equipped item to character
+     */
+    private void applyEquipmentBonuses(CharacterData character, com.mmo.models.Item item) {
+        character.setMaxHealth(character.getMaxHealth() + item.getHealthBonus());
+        character.setHealth(character.getHealth() + item.getHealthBonus());
+        character.setMaxMana(character.getMaxMana() + item.getManaBonus());
+        character.setMana(character.getMana() + item.getManaBonus());
+        character.setAttack(character.getAttack() + item.getAttackBonus());
+        character.setDefense(character.getDefense() + item.getDefenseBonus());
+    }
+    
+    /**
+     * Remove stat bonuses from unequipped item from character
+     */
+    private void removeEquipmentBonuses(CharacterData character, com.mmo.models.Item item) {
+        character.setMaxHealth(character.getMaxHealth() - item.getHealthBonus());
+        // Make sure current health doesn't exceed new max health
+        character.setHealth(Math.min(character.getHealth() - item.getHealthBonus(), character.getMaxHealth()));
+        character.setMaxMana(character.getMaxMana() - item.getManaBonus());
+        // Make sure current mana doesn't exceed new max mana
+        character.setMana(Math.min(character.getMana() - item.getManaBonus(), character.getMaxMana()));
+        character.setAttack(character.getAttack() - item.getAttackBonus());
+        character.setDefense(character.getDefense() - item.getDefenseBonus());
     }
     
     private void handleDisconnect(Connection connection) {
