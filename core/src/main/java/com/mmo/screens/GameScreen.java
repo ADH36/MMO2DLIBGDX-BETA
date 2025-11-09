@@ -872,31 +872,121 @@ public class GameScreen implements Screen {
         game.font.draw(game.batch, "HP: " + playerData.getCharacter().getHealth() + "/" + playerData.getCharacter().getMaxHealth(), uiX, uiY - 50);
         game.font.draw(game.batch, "MP: " + playerData.getCharacter().getMana() + "/" + playerData.getCharacter().getMaxMana(), uiX, uiY - 75);
         
-        // Draw abilities
+        // Draw abilities with enhanced styling
         game.font.setColor(Color.GOLD);
-        game.font.draw(game.batch, "Abilities:", uiX, uiY - 110);
+        game.font.getData().setScale(1.3f);
+        game.font.draw(game.batch, "ABILITIES", uiX, uiY - 110);
+        
+        // End batch to draw ability slots
+        game.batch.end();
+        
+        // Draw ability slot backgrounds
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        if (playerData.getCharacter().getAbilities() != null) {
+            for (int i = 0; i < Math.min(4, playerData.getCharacter().getAbilities().size()); i++) {
+                Ability ability = playerData.getCharacter().getAbilities().get(i);
+                float abilityY = uiY - 140 - (i * 45);
+                
+                boolean onCooldown = !playerData.getCharacter().isAbilityReady(i);
+                boolean notEnoughMana = playerData.getCharacter().getMana() < ability.getManaCost();
+                
+                // Shadow
+                game.shapeRenderer.setColor(0, 0, 0, 0.5f);
+                game.shapeRenderer.rect(uiX + 3, abilityY - 33, 200, 38);
+                
+                // Slot background based on state
+                if (onCooldown) {
+                    game.shapeRenderer.setColor(0.2f, 0.1f, 0.1f, 0.8f);
+                } else if (notEnoughMana) {
+                    game.shapeRenderer.setColor(0.1f, 0.1f, 0.2f, 0.8f);
+                } else {
+                    game.shapeRenderer.setColor(0.15f, 0.25f, 0.35f, 0.8f);
+                }
+                game.shapeRenderer.rect(uiX, abilityY - 35, 200, 38);
+                
+                // Icon background circle
+                if (onCooldown) {
+                    game.shapeRenderer.setColor(0.3f, 0.1f, 0.1f, 0.9f);
+                } else if (notEnoughMana) {
+                    game.shapeRenderer.setColor(0.1f, 0.1f, 0.3f, 0.9f);
+                } else {
+                    game.shapeRenderer.setColor(0.2f, 0.35f, 0.5f, 0.9f);
+                }
+                game.shapeRenderer.circle(uiX + 18, abilityY - 16, 14);
+            }
+        }
+        game.shapeRenderer.end();
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        if (playerData.getCharacter().getAbilities() != null) {
+            for (int i = 0; i < Math.min(4, playerData.getCharacter().getAbilities().size()); i++) {
+                Ability ability = playerData.getCharacter().getAbilities().get(i);
+                float abilityY = uiY - 140 - (i * 45);
+                
+                boolean onCooldown = !playerData.getCharacter().isAbilityReady(i);
+                boolean notEnoughMana = playerData.getCharacter().getMana() < ability.getManaCost();
+                
+                // Border
+                if (onCooldown) {
+                    game.shapeRenderer.setColor(Color.RED);
+                } else if (notEnoughMana) {
+                    game.shapeRenderer.setColor(Color.GRAY);
+                } else {
+                    game.shapeRenderer.setColor(Color.CYAN);
+                }
+                Gdx.gl.glLineWidth(2);
+                game.shapeRenderer.rect(uiX, abilityY - 35, 200, 38);
+                
+                // Icon border
+                game.shapeRenderer.circle(uiX + 18, abilityY - 16, 14);
+                Gdx.gl.glLineWidth(1);
+            }
+        }
+        game.shapeRenderer.end();
+        
+        // Begin batch for text
+        game.batch.begin();
         game.font.getData().setScale(1f);
         if (playerData.getCharacter().getAbilities() != null) {
             for (int i = 0; i < Math.min(4, playerData.getCharacter().getAbilities().size()); i++) {
                 Ability ability = playerData.getCharacter().getAbilities().get(i);
+                float abilityY = uiY - 140 - (i * 45);
                 
                 // Check if ability is on cooldown
                 boolean onCooldown = !playerData.getCharacter().isAbilityReady(i);
                 boolean notEnoughMana = playerData.getCharacter().getMana() < ability.getManaCost();
                 
+                // Draw ability icon (number)
+                game.font.getData().setScale(1.2f);
                 if (onCooldown) {
-                    game.font.setColor(Color.DARK_GRAY);
-                    long cooldownRemaining = (playerData.getCharacter().getAbilityCooldowns()[i] - System.currentTimeMillis()) / 1000;
-                    String abilityText = (i + 1) + ". " + ability.getName() + " (" + cooldownRemaining + "s)";
-                    game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
+                    game.font.setColor(Color.RED);
                 } else if (notEnoughMana) {
                     game.font.setColor(Color.GRAY);
-                    String abilityText = (i + 1) + ". " + ability.getName() + " (No mana)";
-                    game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
                 } else {
+                    game.font.setColor(Color.GOLD);
+                }
+                game.font.draw(game.batch, String.valueOf(i + 1), uiX + 13, abilityY - 9);
+                
+                // Draw ability name and info
+                game.font.getData().setScale(0.9f);
+                if (onCooldown) {
                     game.font.setColor(Color.LIGHT_GRAY);
-                    String abilityText = (i + 1) + ". " + ability.getName() + " (" + ability.getManaCost() + " MP)";
-                    game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
+                    long cooldownRemaining = (playerData.getCharacter().getAbilityCooldowns()[i] - System.currentTimeMillis()) / 1000;
+                    game.font.draw(game.batch, ability.getName(), uiX + 38, abilityY - 9);
+                    game.font.setColor(Color.RED);
+                    game.font.getData().setScale(0.7f);
+                    game.font.draw(game.batch, cooldownRemaining + "s", uiX + 38, abilityY - 23);
+                } else if (notEnoughMana) {
+                    game.font.setColor(Color.GRAY);
+                    game.font.draw(game.batch, ability.getName(), uiX + 38, abilityY - 9);
+                    game.font.getData().setScale(0.7f);
+                    game.font.draw(game.batch, "Not enough mana", uiX + 38, abilityY - 23);
+                } else {
+                    game.font.setColor(Color.WHITE);
+                    game.font.draw(game.batch, ability.getName(), uiX + 38, abilityY - 9);
+                    game.font.setColor(Color.CYAN);
+                    game.font.getData().setScale(0.7f);
+                    game.font.draw(game.batch, ability.getManaCost() + " MP", uiX + 38, abilityY - 23);
                 }
             }
         }
@@ -963,49 +1053,74 @@ public class GameScreen implements Screen {
         int screenWidth = Gdx.graphics.getWidth();
         int screenHeight = Gdx.graphics.getHeight();
         
-        // Background panel
-        int panelWidth = 600;
-        int panelHeight = 450;
+        // Enhanced background panel with gradient
+        int panelWidth = 650;
+        int panelHeight = 500;
         int panelX = (screenWidth - panelWidth) / 2;
         int panelY = (screenHeight - panelHeight) / 2;
         
         // End batch to use shape renderer
         game.batch.end();
         
+        // Draw shadow
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        game.shapeRenderer.setColor(0, 0, 0, 0.8f);
-        game.shapeRenderer.rect(panelX, panelY, panelWidth, panelHeight);
+        game.shapeRenderer.setColor(0, 0, 0, 0.6f);
+        game.shapeRenderer.rect(panelX + 8, panelY - 8, panelWidth, panelHeight);
         game.shapeRenderer.end();
         
+        // Draw gradient background
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        int gradientSteps = 20;
+        float stepHeight = panelHeight / (float)gradientSteps;
+        for (int i = 0; i < gradientSteps; i++) {
+            float progress = i / (float)gradientSteps;
+            float darkness = 0.15f - progress * 0.05f;
+            game.shapeRenderer.setColor(darkness, darkness * 0.8f, darkness * 0.6f, 0.95f);
+            game.shapeRenderer.rect(panelX, panelY + i * stepHeight, panelWidth, stepHeight);
+        }
+        game.shapeRenderer.end();
+        
+        // Draw decorative borders
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        Gdx.gl.glLineWidth(3);
         game.shapeRenderer.setColor(Color.GOLD);
         game.shapeRenderer.rect(panelX, panelY, panelWidth, panelHeight);
+        
+        Gdx.gl.glLineWidth(2);
+        game.shapeRenderer.setColor(new Color(0.8f, 0.6f, 0.2f, 0.8f));
+        game.shapeRenderer.rect(panelX + 5, panelY + 5, panelWidth - 10, panelHeight - 10);
+        
+        Gdx.gl.glLineWidth(1);
         game.shapeRenderer.end();
         
         // Begin batch again for text
         game.batch.begin();
         
-        // Title
-        game.font.getData().setScale(1.5f);
+        // Title with shadow
+        game.font.getData().setScale(1.8f);
+        game.font.setColor(0, 0, 0, 0.8f);
+        game.font.draw(game.batch, "ADVENTURER'S BAG", panelX + 22, panelY + panelHeight - 18);
         game.font.setColor(Color.GOLD);
-        game.font.draw(game.batch, "Inventory", panelX + 20, panelY + panelHeight - 20);
+        game.font.draw(game.batch, "ADVENTURER'S BAG", panelX + 20, panelY + panelHeight - 20);
         
-        // Gold
-        game.font.getData().setScale(1.2f);
-        game.font.setColor(Color.YELLOW);
+        // Gold with coin icon
+        game.font.getData().setScale(1.3f);
+        game.font.setColor(0, 0, 0, 0.8f);
         int gold = playerData.getCharacter().getInventory().getGold();
+        game.font.draw(game.batch, "Gold: " + gold, panelX + panelWidth - 148, panelY + panelHeight - 18);
+        game.font.setColor(Color.YELLOW);
         game.font.draw(game.batch, "Gold: " + gold, panelX + panelWidth - 150, panelY + panelHeight - 20);
         
         // End batch for grid rendering
         game.batch.end();
         
         // Draw inventory grid (4 columns x 5 rows = 20 slots)
-        int slotSize = 70;
-        int slotPadding = 10;
+        int slotSize = 75;
+        int slotPadding = 12;
         int columns = 4;
         int rows = 5;
-        int gridStartX = panelX + 30;
-        int gridStartY = panelY + panelHeight - 80;
+        int gridStartX = panelX + 35;
+        int gridStartY = panelY + panelHeight - 90;
         
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
@@ -1015,15 +1130,37 @@ public class GameScreen implements Screen {
                 int slotX = gridStartX + col * (slotSize + slotPadding);
                 int slotY = gridStartY - row * (slotSize + slotPadding);
                 
-                // Slot background
-                game.shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 1f);
+                com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
+                
+                // Slot shadow
+                game.shapeRenderer.setColor(0, 0, 0, 0.5f);
+                game.shapeRenderer.rect(slotX + 3, slotY - 3, slotSize, slotSize);
+                
+                // Slot background with gradient
+                if (invItem != null) {
+                    // Highlight slot with item based on rarity
+                    Color rarityColor = getRarityColor(invItem.getItem().getRarity());
+                    game.shapeRenderer.setColor(rarityColor.r * 0.15f, rarityColor.g * 0.15f, rarityColor.b * 0.15f, 0.8f);
+                } else {
+                    game.shapeRenderer.setColor(0.15f, 0.15f, 0.18f, 0.9f);
+                }
                 game.shapeRenderer.rect(slotX, slotY, slotSize, slotSize);
+                
+                // Inner slot highlight for depth
+                if (invItem != null) {
+                    Color rarityColor = getRarityColor(invItem.getItem().getRarity());
+                    game.shapeRenderer.setColor(rarityColor.r * 0.25f, rarityColor.g * 0.25f, rarityColor.b * 0.25f, 0.6f);
+                } else {
+                    game.shapeRenderer.setColor(0.25f, 0.25f, 0.28f, 0.6f);
+                }
+                game.shapeRenderer.rect(slotX + 2, slotY + 2, slotSize - 4, slotSize - 4);
             }
         }
         
         game.shapeRenderer.end();
         
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        Gdx.gl.glLineWidth(2);
         
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < columns; col++) {
@@ -1031,19 +1168,35 @@ public class GameScreen implements Screen {
                 int slotX = gridStartX + col * (slotSize + slotPadding);
                 int slotY = gridStartY - row * (slotSize + slotPadding);
                 
-                // Slot border
-                game.shapeRenderer.setColor(Color.GRAY);
+                com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
+                
+                // Slot border based on rarity
+                if (invItem != null) {
+                    Color rarityColor = getRarityColor(invItem.getItem().getRarity());
+                    game.shapeRenderer.setColor(rarityColor);
+                } else {
+                    game.shapeRenderer.setColor(0.4f, 0.4f, 0.5f, 0.8f);
+                }
                 game.shapeRenderer.rect(slotX, slotY, slotSize, slotSize);
+                
+                // Inner border for beveled effect
+                if (invItem != null) {
+                    game.shapeRenderer.setColor(Color.WHITE.r * 0.3f, Color.WHITE.g * 0.3f, Color.WHITE.b * 0.3f, 0.4f);
+                } else {
+                    game.shapeRenderer.setColor(0.3f, 0.3f, 0.35f, 0.4f);
+                }
+                game.shapeRenderer.rect(slotX + 3, slotY + 3, slotSize - 6, slotSize - 6);
             }
         }
         
+        Gdx.gl.glLineWidth(1);
         game.shapeRenderer.end();
         
         // Begin batch again for item text
         game.batch.begin();
         
         // Draw items in inventory
-        game.font.getData().setScale(1f);
+        game.font.getData().setScale(0.85f);
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < columns; col++) {
                 int slotIndex = row * columns + col;
@@ -1052,78 +1205,167 @@ public class GameScreen implements Screen {
                 
                 // Draw slot number (only for first 10 slots)
                 if (slotIndex < 10) {
-                    game.font.setColor(Color.DARK_GRAY);
-                    game.font.getData().setScale(0.7f);
-                    game.font.draw(game.batch, String.valueOf(slotIndex), slotX + slotSize - 12, slotY + slotSize - 5);
-                    game.font.getData().setScale(1f);
+                    game.font.setColor(0, 0, 0, 0.8f);
+                    game.font.getData().setScale(0.65f);
+                    game.font.draw(game.batch, String.valueOf(slotIndex), slotX + slotSize - 14, slotY + slotSize - 7);
+                    game.font.setColor(Color.LIGHT_GRAY);
+                    game.font.draw(game.batch, String.valueOf(slotIndex), slotX + slotSize - 15, slotY + slotSize - 8);
+                    game.font.getData().setScale(0.85f);
                 }
                 
                 com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
                 if (invItem != null) {
+                    // Draw item icon representation
+                    String itemIcon = getItemIcon(invItem.getItem().getType());
+                    game.font.getData().setScale(2.0f);
+                    Color rarityColor = getRarityColor(invItem.getItem().getRarity());
+                    game.font.setColor(0, 0, 0, 0.8f);
+                    game.font.draw(game.batch, itemIcon, slotX + slotSize / 2 - 11, slotY + slotSize / 2 + 9);
+                    game.font.setColor(rarityColor);
+                    game.font.draw(game.batch, itemIcon, slotX + slotSize / 2 - 12, slotY + slotSize / 2 + 10);
+                    
                     // Draw item name
-                    game.font.setColor(getRarityColor(invItem.getItem().getRarity()));
+                    game.font.getData().setScale(0.7f);
+                    game.font.setColor(0, 0, 0, 0.9f);
                     String itemName = invItem.getItem().getName();
-                    if (itemName.length() > 8) {
-                        itemName = itemName.substring(0, 8);
+                    if (itemName.length() > 9) {
+                        itemName = itemName.substring(0, 9);
                     }
-                    game.font.draw(game.batch, itemName, slotX + 5, slotY + slotSize - 10);
+                    game.font.draw(game.batch, itemName, slotX + 4, slotY + 14);
+                    game.font.setColor(rarityColor);
+                    game.font.draw(game.batch, itemName, slotX + 3, slotY + 15);
                     
                     // Draw quantity if stackable
                     if (invItem.getItem().isStackable()) {
+                        game.font.getData().setScale(0.9f);
+                        game.font.setColor(0, 0, 0, 0.9f);
+                        game.font.draw(game.batch, "x" + invItem.getQuantity(), slotX + slotSize - 27, slotY + 19);
                         game.font.setColor(Color.WHITE);
-                        game.font.draw(game.batch, "x" + invItem.getQuantity(), slotX + 5, slotY + 15);
+                        game.font.draw(game.batch, "x" + invItem.getQuantity(), slotX + slotSize - 28, slotY + 20);
                     }
+                    game.font.getData().setScale(0.85f);
                 }
             }
         }
         
-        // Instructions
-        game.font.getData().setScale(0.8f);
-        game.font.setColor(Color.LIGHT_GRAY);
-        game.font.draw(game.batch, "0-9: Use | E+0-9: Equip | U+W: Unequip Weapon | U+A: Unequip Armor", 
+        // Instructions with better styling
+        game.font.getData().setScale(0.75f);
+        game.font.setColor(0, 0, 0, 0.8f);
+        game.font.draw(game.batch, "0-9: Use Item | E+0-9: Equip | U+W: Unequip Weapon | U+A: Unequip Armor", 
+                      panelX + 22, panelY + 27);
+        game.font.setColor(Color.CYAN);
+        game.font.draw(game.batch, "0-9: Use Item | E+0-9: Equip | U+W: Unequip Weapon | U+A: Unequip Armor", 
                       panelX + 20, panelY + 25);
         
-        // Draw equipped items section
-        int equipX = panelX + 380;
-        int equipY = panelY + panelHeight - 80;
+        // Draw equipped items section with enhanced styling
+        int equipX = panelX + 410;
+        int equipY = panelY + panelHeight - 90;
         
-        game.font.getData().setScale(1.2f);
+        // Section background
+        game.batch.end();
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        game.shapeRenderer.setColor(0.1f, 0.1f, 0.15f, 0.7f);
+        game.shapeRenderer.rect(equipX - 10, panelY + 50, 230, panelHeight - 120);
+        game.shapeRenderer.end();
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        game.shapeRenderer.setColor(Color.GOLD);
+        Gdx.gl.glLineWidth(2);
+        game.shapeRenderer.rect(equipX - 10, panelY + 50, 230, panelHeight - 120);
+        Gdx.gl.glLineWidth(1);
+        game.shapeRenderer.end();
+        
+        game.batch.begin();
+        
+        game.font.getData().setScale(1.3f);
+        game.font.setColor(0, 0, 0, 0.8f);
+        game.font.draw(game.batch, "EQUIPPED", equipX + 22, equipY + 32);
         game.font.setColor(Color.GOLD);
-        game.font.draw(game.batch, "Equipped:", equipX, equipY + 30);
+        game.font.draw(game.batch, "EQUIPPED", equipX + 20, equipY + 30);
         
-        game.font.getData().setScale(0.9f);
+        game.font.getData().setScale(0.95f);
         
-        // Show equipped weapon
+        // Show equipped weapon with icon
         com.mmo.models.Item weaponItem = playerData.getCharacter().getEquippedItem(com.mmo.models.EquipmentSlot.WEAPON);
         if (weaponItem != null) {
-            game.font.setColor(getRarityColor(weaponItem.getRarity()));
-            game.font.draw(game.batch, "Weapon:", equipX, equipY);
+            // Weapon icon
+            game.font.getData().setScale(1.5f);
+            Color weaponColor = getRarityColor(weaponItem.getRarity());
+            game.font.setColor(0, 0, 0, 0.8f);
+            game.font.draw(game.batch, "⚔", equipX - 4, equipY + 2);
+            game.font.setColor(weaponColor);
+            game.font.draw(game.batch, "⚔", equipX - 5, equipY + 3);
+            
+            game.font.getData().setScale(0.85f);
+            game.font.setColor(0, 0, 0, 0.8f);
+            game.font.draw(game.batch, "Weapon:", equipX + 21, equipY + 1);
+            game.font.setColor(Color.LIGHT_GRAY);
+            game.font.draw(game.batch, "Weapon:", equipX + 20, equipY);
+            
+            game.font.setColor(0, 0, 0, 0.9f);
+            game.font.draw(game.batch, weaponItem.getName(), equipX + 11, equipY - 19);
+            game.font.setColor(weaponColor);
             game.font.draw(game.batch, weaponItem.getName(), equipX + 10, equipY - 20);
-            game.font.setColor(Color.GREEN);
+            
+            game.font.setColor(0, 0, 0, 0.8f);
             game.font.getData().setScale(0.7f);
+            game.font.draw(game.batch, "ATK +" + weaponItem.getAttackBonus(), equipX + 11, equipY - 34);
+            game.font.setColor(Color.GREEN);
             game.font.draw(game.batch, "ATK +" + weaponItem.getAttackBonus(), equipX + 10, equipY - 35);
-            game.font.getData().setScale(0.9f);
+            game.font.getData().setScale(0.95f);
         } else {
-            game.font.setColor(Color.GRAY);
-            game.font.draw(game.batch, "Weapon: None", equipX, equipY);
+            game.font.getData().setScale(0.85f);
+            game.font.setColor(Color.DARK_GRAY);
+            game.font.draw(game.batch, "Weapon: Empty", equipX, equipY);
         }
         
-        // Show equipped armor
+        // Show equipped armor with icon
         com.mmo.models.Item armorItem = playerData.getCharacter().getEquippedItem(com.mmo.models.EquipmentSlot.ARMOR);
         if (armorItem != null) {
-            game.font.setColor(getRarityColor(armorItem.getRarity()));
-            game.font.draw(game.batch, "Armor:", equipX, equipY - 80);
+            // Armor icon
+            game.font.getData().setScale(1.5f);
+            Color armorColor = getRarityColor(armorItem.getRarity());
+            game.font.setColor(0, 0, 0, 0.8f);
+            game.font.draw(game.batch, "🛡", equipX - 4, equipY - 78);
+            game.font.setColor(armorColor);
+            game.font.draw(game.batch, "🛡", equipX - 5, equipY - 77);
+            
+            game.font.getData().setScale(0.85f);
+            game.font.setColor(0, 0, 0, 0.8f);
+            game.font.draw(game.batch, "Armor:", equipX + 21, equipY - 79);
+            game.font.setColor(Color.LIGHT_GRAY);
+            game.font.draw(game.batch, "Armor:", equipX + 20, equipY - 80);
+            
+            game.font.setColor(0, 0, 0, 0.9f);
+            game.font.draw(game.batch, armorItem.getName(), equipX + 11, equipY - 99);
+            game.font.setColor(armorColor);
             game.font.draw(game.batch, armorItem.getName(), equipX + 10, equipY - 100);
-            game.font.setColor(Color.GREEN);
+            
+            game.font.setColor(0, 0, 0, 0.8f);
             game.font.getData().setScale(0.7f);
             String bonusText = "";
             if (armorItem.getDefenseBonus() > 0) bonusText += "DEF +" + armorItem.getDefenseBonus() + " ";
             if (armorItem.getHealthBonus() > 0) bonusText += "HP +" + armorItem.getHealthBonus();
+            game.font.draw(game.batch, bonusText, equipX + 11, equipY - 114);
+            game.font.setColor(Color.GREEN);
             game.font.draw(game.batch, bonusText, equipX + 10, equipY - 115);
-            game.font.getData().setScale(0.9f);
+            game.font.getData().setScale(0.95f);
         } else {
-            game.font.setColor(Color.GRAY);
-            game.font.draw(game.batch, "Armor: None", equipX, equipY - 80);
+            game.font.getData().setScale(0.85f);
+            game.font.setColor(Color.DARK_GRAY);
+            game.font.draw(game.batch, "Armor: Empty", equipX, equipY - 80);
+        }
+    }
+    
+    // Get simple icon representation for item types
+    private String getItemIcon(com.mmo.models.ItemType itemType) {
+        switch (itemType) {
+            case WEAPON: return "⚔";
+            case ARMOR: return "🛡";
+            case CONSUMABLE: return "⚗";
+            case MATERIAL: return "◆";
+            case QUEST: return "★";
+            default: return "?";
         }
     }
     
