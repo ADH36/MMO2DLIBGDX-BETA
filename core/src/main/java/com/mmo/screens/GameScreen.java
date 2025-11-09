@@ -92,6 +92,9 @@ public class GameScreen implements Screen {
                 } else if (object instanceof Network.PlayerRespawn) {
                     Network.PlayerRespawn respawn = (Network.PlayerRespawn) object;
                     handlePlayerRespawn(respawn);
+                } else if (object instanceof Network.UseItemResponse) {
+                    Network.UseItemResponse response = (Network.UseItemResponse) object;
+                    handleUseItemResponse(response);
                 }
             }
         });
@@ -178,6 +181,31 @@ public class GameScreen implements Screen {
             playerData.getCharacter().setY(respawn.y);
             addChatMessage("You have respawned!");
             showCombatFeedback("RESPAWNED");
+        }
+    }
+    
+    private void handleUseItemResponse(Network.UseItemResponse response) {
+        if (response.success) {
+            // Update local stats
+            if (response.healthRestored > 0) {
+                int newHealth = Math.min(
+                    playerData.getCharacter().getHealth() + response.healthRestored,
+                    playerData.getCharacter().getMaxHealth()
+                );
+                playerData.getCharacter().setHealth(newHealth);
+                showCombatFeedback("+" + response.healthRestored + " HP");
+            }
+            if (response.manaRestored > 0) {
+                int newMana = Math.min(
+                    playerData.getCharacter().getMana() + response.manaRestored,
+                    playerData.getCharacter().getMaxMana()
+                );
+                playerData.getCharacter().setMana(newMana);
+                showCombatFeedback("+" + response.manaRestored + " MP");
+            }
+            addChatMessage(response.message);
+        } else {
+            showCombatFeedback(response.message);
         }
     }
     
@@ -412,7 +440,35 @@ public class GameScreen implements Screen {
                 selectedInventorySlot = -1;
                 return;
             }
+            
+            // Use items with number keys (0-9 for slots 0-9)
+            for (int i = Input.Keys.NUM_0; i <= Input.Keys.NUM_9; i++) {
+                if (Gdx.input.isKeyJustPressed(i)) {
+                    int slotIndex = i - Input.Keys.NUM_0;
+                    useInventoryItem(slotIndex);
+                    break;
+                }
+            }
         }
+    }
+    
+    private void useInventoryItem(int slotIndex) {
+        com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
+        if (invItem == null) {
+            showCombatFeedback("No item in slot " + slotIndex);
+            return;
+        }
+        
+        // Only consumables can be used
+        if (invItem.getItem().getType() != com.mmo.models.ItemType.CONSUMABLE) {
+            showCombatFeedback("Cannot use this item");
+            return;
+        }
+        
+        // Send use item request to server
+        Network.UseItemRequest request = new Network.UseItemRequest();
+        request.slotIndex = slotIndex;
+        game.client.sendTCP(request);
     }
     
     private void sendChatMessage(String message) {
@@ -703,6 +759,14 @@ public class GameScreen implements Screen {
                 int slotX = gridStartX + col * (slotSize + slotPadding);
                 int slotY = gridStartY - row * (slotSize + slotPadding);
                 
+                // Draw slot number (only for first 10 slots)
+                if (slotIndex < 10) {
+                    game.font.setColor(Color.DARK_GRAY);
+                    game.font.getData().setScale(0.7f);
+                    game.font.draw(game.batch, String.valueOf(slotIndex), slotX + slotSize - 12, slotY + slotSize - 5);
+                    game.font.getData().setScale(1f);
+                }
+                
                 com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
                 if (invItem != null) {
                     // Draw item name
@@ -725,7 +789,7 @@ public class GameScreen implements Screen {
         // Instructions
         game.font.getData().setScale(0.9f);
         game.font.setColor(Color.LIGHT_GRAY);
-        game.font.draw(game.batch, "ESC to close", panelX + 20, panelY + 25);
+        game.font.draw(game.batch, "0-9: Use item | ESC: Close", panelX + 20, panelY + 25);
     }
     
     private Color getRarityColor(com.mmo.models.ItemRarity rarity) {
