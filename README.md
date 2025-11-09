@@ -27,6 +27,14 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Range checking
   - Health bars above players
   - Death and auto-respawn mechanics
+- **Enhanced Graphics & Animations**: Immersive visual experience
+  - Animated player sprites with idle, walking, and attacking states
+  - Particle effects for combat hits, healing, movement trails
+  - Ability visual effects (projectiles, beams, area effects, buffs)
+  - Procedurally generated world with varied terrain
+  - Trees, rocks, flowers, water, and paths
+  - Enhanced health bars with gradients and color coding
+  - Camera shake effects on damage
 - **Open World**: Tile-based world with player movement and multiplayer synchronization
 - **Chat System**: Real-time chat with other players
 - **Real-time Multiplayer**: See and interact with other players in the world
@@ -260,13 +268,13 @@ The game uses KryoNet for efficient client-server communication:
 - Database persistence (currently in-memory)
 - ~~Combat system implementation~~ ✅ **COMPLETED**
 - ~~Item and inventory system~~ ✅ **COMPLETED**
+- ~~Enhanced graphics and animations~~ ✅ **COMPLETED**
 - Equipment system (equipping weapons/armor)
 - Item trading between players
 - Quests and NPCs
 - Guilds and parties
 - PvP and PvE content (PvP combat ✅ completed)
 - Mobile client support
-- Enhanced graphics and animations
 
 ## License
 
