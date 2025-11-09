@@ -40,15 +40,21 @@ public class Network {
         kryo.register(ChatMessage.class);
         kryo.register(UseAbilityRequest.class);
         kryo.register(UseAbilityResponse.class);
+        kryo.register(CombatEvent.class);
+        kryo.register(AttackRequest.class);
+        kryo.register(PlayerDeath.class);
+        kryo.register(PlayerRespawn.class);
         
         // Data models
         kryo.register(PlayerData.class);
         kryo.register(CharacterData.class);
         kryo.register(CharacterClass.class);
         kryo.register(Ability.class);
+        kryo.register(CombatAction.class);
         kryo.register(java.util.ArrayList.class);
         kryo.register(java.util.HashMap.class);
         kryo.register(String[].class);
+        kryo.register(long[].class);
     }
     
     // Authentication Messages
@@ -125,6 +131,8 @@ public class Network {
         public float y;
         public String name;
         public int level;
+        public int health;
+        public int maxHealth;
     }
     
     public static class WorldUpdate {
@@ -139,6 +147,7 @@ public class Network {
     
     public static class UseAbilityRequest {
         public int abilityIndex;
+        public long targetPlayerId; // Changed to target a specific player
         public float targetX;
         public float targetY;
     }
@@ -146,5 +155,39 @@ public class Network {
     public static class UseAbilityResponse {
         public boolean success;
         public String message;
+        public int currentMana;
+        public int currentHealth;
+    }
+    
+    public static class AttackRequest {
+        public long targetPlayerId;
+        public int abilityIndex;
+    }
+    
+    public static class CombatEvent {
+        public long attackerId;
+        public String attackerName;
+        public long targetId;
+        public String targetName;
+        public String abilityName;
+        public int damage;
+        public int healing;
+        public boolean isCritical;
+        public int targetHealthAfter;
+        public int attackerManaAfter;
+        public long timestamp;
+    }
+    
+    public static class PlayerDeath {
+        public long playerId;
+        public String playerName;
+        public long killerId;
+        public String killerName;
+    }
+    
+    public static class PlayerRespawn {
+        public long playerId;
+        public float x;
+        public float y;
     }
 }

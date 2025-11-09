@@ -18,6 +18,15 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - **Rogue**: Stealthy assassin with critical strikes
   - **Cleric**: Holy warrior with healing and support abilities
 - **Ability System**: Each class has 4 unique abilities with detailed descriptions
+- **Combat System**: Full PvP combat implementation
+  - Target selection (TAB/T keys)
+  - Skill-based attacks with damage calculation
+  - Critical hits (15% chance, 150% damage)
+  - Mana consumption and auto-regeneration
+  - Cooldown system
+  - Range checking
+  - Health bars above players
+  - Death and auto-respawn mechanics
 - **Open World**: Tile-based world with player movement and multiplayer synchronization
 - **Chat System**: Real-time chat with other players
 - **Real-time Multiplayer**: See and interact with other players in the world
@@ -26,6 +35,12 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
 - **Authentication Management**: Secure login and registration
 - **Character Storage**: Persistent character data
 - **World State Synchronization**: Real-time player position updates
+- **Combat System**: Server-validated combat mechanics
+  - Damage calculation and validation
+  - Mana and cooldown enforcement
+  - Range checking
+  - Death detection and respawn
+  - Combat event broadcasting
 - **Chat Broadcasting**: Server-side chat message relay
 - **Player Management**: Track active players and sessions
 - **Monitoring Dashboard**: Real-time server statistics and player information
@@ -122,9 +137,21 @@ Default test account:
 
 ### In-Game Controls
 - **WASD** or **Arrow Keys**: Move character
-- **1-4**: Use abilities
+- **1-4**: Use abilities (attacks selected target)
+- **TAB**: Cycle through nearby targets
+- **T**: Target nearest player
 - **ENTER**: Open chat
 - **ESC**: Return to character selection
+
+### Combat System
+- **Targeting**: Use TAB to cycle targets or T to target nearest enemy
+- **Abilities**: Press 1-4 to use class abilities on selected target
+- **Visual Feedback**: Health bars, target highlighting, combat messages
+- **Mana Management**: Abilities cost mana, regenerates automatically
+- **Cooldowns**: Abilities have cooldown periods to prevent spam
+- **Death/Respawn**: Auto-respawn 3 seconds after death with full HP/MP
+
+See [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md) for detailed combat mechanics.
 
 ### Chat System
 - Press **ENTER** to activate chat
@@ -210,11 +237,11 @@ The game uses KryoNet for efficient client-server communication:
 ## Future Enhancements
 
 - Database persistence (currently in-memory)
-- Combat system implementation
+- ~~Combat system implementation~~ ✅ **COMPLETED**
 - Item and inventory system
 - Quests and NPCs
 - Guilds and parties
-- PvP and PvE content
+- PvP and PvE content (PvP combat ✅ completed)
 - Mobile client support
 - Enhanced graphics and animations
 
@@ -228,4 +255,4 @@ This project is open source and available for educational purposes.
 
 ---
 
-**Note**: This is a beta version. The game is fully functional for demonstration and learning purposes, with core MMO features implemented including authentication, character management, open world exploration, and real-time multiplayer.
+**Note**: This is a beta version with **fully functional combat system**. The game includes core MMO features: authentication, character management, open world exploration, real-time multiplayer, and **complete PvP combat with skills, damage calculation, and death/respawn mechanics**.
