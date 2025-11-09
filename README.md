@@ -44,6 +44,11 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Consumables, weapons, armor, materials, and quest items
   - Gold currency system
   - Starter items for new characters
+- **Equipment System**: Equip weapons and armor for stat bonuses
+  - Weapon and armor slots
+  - Attack, defense, health, and mana bonuses
+  - Auto-swap when equipping new items
+  - Server-validated stat changes
 
 ### Server Features
 - **Authentication Management**: Secure login and registration
@@ -63,6 +68,11 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Item usage validation
   - Effect application (health/mana restoration)
   - Inventory state synchronization
+- **Equipment System**: Server-validated equipment management
+  - Equip/unequip validation
+  - Stat bonus application
+  - Equipment swapping
+  - Inventory overflow prevention
 
 ## Project Structure
 
@@ -160,6 +170,9 @@ Default test account:
 - **T**: Target nearest player
 - **I**: Open/close inventory
 - **0-9**: Use item in inventory slot (when inventory is open)
+- **E+0-9**: Equip item from inventory slot (when inventory is open)
+- **U+W**: Unequip weapon (when inventory is open)
+- **U+A**: Unequip armor (when inventory is open)
 - **ENTER**: Open chat
 - **ESC**: Return to character selection (or close inventory if open)
 
@@ -177,10 +190,24 @@ See [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md) for detailed combat mechanics.
 - Press **I** to open/close inventory
 - **20 slots** for items
 - Press **0-9** to use consumable items in slots 0-9
+- Press **E+0-9** to equip weapons/armor from slots 0-9
+- Press **U+W** to unequip weapon, **U+A** to unequip armor
 - **Item Rarity**: Common (white), Uncommon (green), Rare (blue), Epic (purple), Legendary (orange)
 - **Item Types**: Consumables, Weapons, Armor, Materials, Quest items
 - **Gold**: Currency system for future trading
 - **Starter Items**: New characters begin with health/mana potions, basic weapon and armor
+
+See [INVENTORY_SYSTEM.md](INVENTORY_SYSTEM.md) for detailed inventory mechanics.
+
+### Equipment System
+- Equip weapons and armor to enhance character stats
+- **2 Equipment Slots**: Weapon and Armor
+- **Stat Bonuses**: Attack, Defense, Health, and Mana bonuses from equipment
+- **Auto-Swap**: Equipping a new item automatically unequips the old one
+- **Visual Display**: See equipped items and their bonuses in the inventory UI
+- Equipment bonuses are applied immediately and validated server-side
+
+See [EQUIPMENT_SYSTEM.md](EQUIPMENT_SYSTEM.md) for detailed equipment mechanics.
 
 ### Chat System
 - Press **ENTER** to activate chat
@@ -269,7 +296,7 @@ The game uses KryoNet for efficient client-server communication:
 - ~~Combat system implementation~~ ✅ **COMPLETED**
 - ~~Item and inventory system~~ ✅ **COMPLETED**
 - ~~Enhanced graphics and animations~~ ✅ **COMPLETED**
-- Equipment system (equipping weapons/armor)
+- ~~Equipment system (equipping weapons/armor)~~ ✅ **COMPLETED**
 - Item trading between players
 - Quests and NPCs
 - Guilds and parties
