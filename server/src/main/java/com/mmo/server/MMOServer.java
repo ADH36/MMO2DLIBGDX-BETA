@@ -27,7 +27,10 @@ public class MMOServer {
     private AtomicLong playerIdCounter;
     
     private static final int WORLD_UPDATE_INTERVAL = 50; // ms
+    private static final int MANA_REGEN_INTERVAL = 2000; // ms (2 seconds)
+    private static final int MANA_REGEN_AMOUNT = 5; // mana points per tick
     private Timer worldUpdateTimer;
+    private Timer manaRegenTimer;
     
     public MMOServer() {
         server = new Server(16384, 8192);
@@ -438,6 +441,8 @@ public class MMOServer {
             playerUpdate.y = playerData.getCharacter().getY();
             playerUpdate.name = playerData.getCharacter().getName();
             playerUpdate.level = playerData.getCharacter().getLevel();
+            playerUpdate.health = playerData.getCharacter().getHealth();
+            playerUpdate.maxHealth = playerData.getCharacter().getMaxHealth();
             playerUpdates.add(playerUpdate);
         }
         
@@ -466,6 +471,7 @@ public class MMOServer {
             System.out.println("==============================================");
             
             startWorldUpdates();
+            startManaRegeneration();
             startMonitoring();
             
         } catch (IOException e) {
@@ -503,9 +509,34 @@ public class MMOServer {
         System.out.println("====================\n");
     }
     
+    private void startManaRegeneration() {
+        manaRegenTimer = new Timer();
+        manaRegenTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                regenerateMana();
+            }
+        }, MANA_REGEN_INTERVAL, MANA_REGEN_INTERVAL);
+    }
+    
+    private void regenerateMana() {
+        for (PlayerData playerData : activePlayers.values()) {
+            CharacterData character = playerData.getCharacter();
+            int currentMana = character.getMana();
+            int maxMana = character.getMaxMana();
+            
+            if (currentMana < maxMana) {
+                character.setMana(Math.min(maxMana, currentMana + MANA_REGEN_AMOUNT));
+            }
+        }
+    }
+    
     public void stop() {
         if (worldUpdateTimer != null) {
             worldUpdateTimer.cancel();
+        }
+        if (manaRegenTimer != null) {
+            manaRegenTimer.cancel();
         }
         server.stop();
         System.out.println("Server stopped");

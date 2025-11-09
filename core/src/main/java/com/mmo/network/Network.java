@@ -129,6 +129,8 @@ public class Network {
         public float y;
         public String name;
         public int level;
+        public int health;
+        public int maxHealth;
     }
     
     public static class WorldUpdate {

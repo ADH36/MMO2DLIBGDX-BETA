@@ -399,11 +399,19 @@ public class GameScreen implements Screen {
             }
             game.shapeRenderer.setColor(Color.RED);
             game.shapeRenderer.circle(player.x, player.y, 20);
+            
+            // Draw health bar
+            drawHealthBar(player.x, player.y, player.health, player.maxHealth);
         }
         
         // Draw local player
         game.shapeRenderer.setColor(Color.BLUE);
         game.shapeRenderer.circle(playerPosition.x, playerPosition.y, 20);
+        
+        // Draw local player health bar
+        drawHealthBar(playerPosition.x, playerPosition.y, 
+                     playerData.getCharacter().getHealth(), 
+                     playerData.getCharacter().getMaxHealth());
         
         game.shapeRenderer.end();
         
@@ -414,14 +422,35 @@ public class GameScreen implements Screen {
         for (Network.PlayerUpdate player : otherPlayers.values()) {
             game.font.setColor(Color.WHITE);
             game.font.draw(game.batch, player.name + " (Lv" + player.level + ")", 
-                          player.x - 30, player.y + 35);
+                          player.x - 30, player.y + 50);
         }
         
         game.font.setColor(Color.CYAN);
         game.font.draw(game.batch, playerData.getCharacter().getName() + " (Lv" + playerData.getCharacter().getLevel() + ")", 
-                      playerPosition.x - 30, playerPosition.y + 35);
+                      playerPosition.x - 30, playerPosition.y + 50);
         
         game.batch.end();
+    }
+    
+    private void drawHealthBar(float x, float y, int health, int maxHealth) {
+        float barWidth = 40;
+        float barHeight = 4;
+        float healthPercent = (float)health / maxHealth;
+        
+        // Background (red)
+        game.shapeRenderer.setColor(Color.RED);
+        game.shapeRenderer.rect(x - barWidth / 2, y + 30, barWidth, barHeight);
+        
+        // Health (green)
+        game.shapeRenderer.setColor(Color.GREEN);
+        game.shapeRenderer.rect(x - barWidth / 2, y + 30, barWidth * healthPercent, barHeight);
+        
+        // Border
+        game.shapeRenderer.setColor(Color.BLACK);
+        game.shapeRenderer.rect(x - barWidth / 2 - 1, y + 30 - 1, barWidth + 2, 1); // Top
+        game.shapeRenderer.rect(x - barWidth / 2 - 1, y + 30 + barHeight, barWidth + 2, 1); // Bottom
+        game.shapeRenderer.rect(x - barWidth / 2 - 1, y + 30, 1, barHeight); // Left
+        game.shapeRenderer.rect(x + barWidth / 2, y + 30, 1, barHeight); // Right
     }
     
     private void drawUI() {
