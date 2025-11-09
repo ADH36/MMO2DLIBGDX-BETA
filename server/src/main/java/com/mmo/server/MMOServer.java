@@ -98,6 +98,8 @@ public class MMOServer {
             handleUseAbility(connection, (Network.UseAbilityRequest) object);
         } else if (object instanceof Network.AttackRequest) {
             handleAttack(connection, (Network.AttackRequest) object);
+        } else if (object instanceof Network.UseItemRequest) {
+            handleUseItem(connection, (Network.UseItemRequest) object);
         }
     }
     
@@ -458,6 +460,79 @@ public class MMOServer {
         }
         
         System.out.println(character.getName() + " respawned");
+    }
+    
+    private void handleUseItem(Connection connection, Network.UseItemRequest request) {
+        PlayerData playerData = activePlayers.get(connection);
+        Network.UseItemResponse response = new Network.UseItemResponse();
+        
+        if (playerData == null) {
+            response.success = false;
+            response.message = "Player not found";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        CharacterData character = playerData.getCharacter();
+        com.mmo.models.Inventory inventory = character.getInventory();
+        com.mmo.models.InventoryItem invItem = inventory.getItemAtSlot(request.slotIndex);
+        
+        if (invItem == null) {
+            response.success = false;
+            response.message = "No item in this slot";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        com.mmo.models.Item item = invItem.getItem();
+        
+        // Check if item is consumable
+        if (item.getType() != com.mmo.models.ItemType.CONSUMABLE) {
+            response.success = false;
+            response.message = "This item cannot be used";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        // Use the item
+        if (!inventory.useItem(request.slotIndex)) {
+            response.success = false;
+            response.message = "Failed to use item";
+            connection.sendTCP(response);
+            return;
+        }
+        
+        // Apply item effects
+        int healthRestored = 0;
+        int manaRestored = 0;
+        
+        if (item.getHealthRestore() > 0) {
+            int oldHealth = character.getHealth();
+            int newHealth = Math.min(oldHealth + item.getHealthRestore(), character.getMaxHealth());
+            character.setHealth(newHealth);
+            healthRestored = newHealth - oldHealth;
+        }
+        
+        if (item.getManaRestore() > 0) {
+            int oldMana = character.getMana();
+            int newMana = Math.min(oldMana + item.getManaRestore(), character.getMaxMana());
+            character.setMana(newMana);
+            manaRestored = newMana - oldMana;
+        }
+        
+        // If item quantity is 0, remove it
+        if (invItem.getQuantity() == 0) {
+            inventory.getItems().remove(invItem);
+        }
+        
+        response.success = true;
+        response.message = "Used " + item.getName();
+        response.healthRestored = healthRestored;
+        response.manaRestored = manaRestored;
+        connection.sendTCP(response);
+        
+        System.out.println(character.getName() + " used " + item.getName() + 
+                          " (HP: +" + healthRestored + ", MP: +" + manaRestored + ")");
     }
     
     private void handleDisconnect(Connection connection) {

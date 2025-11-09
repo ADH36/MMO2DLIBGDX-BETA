@@ -45,12 +45,25 @@ public class Network {
         kryo.register(PlayerDeath.class);
         kryo.register(PlayerRespawn.class);
         
+        // Inventory messages
+        kryo.register(AddItemRequest.class);
+        kryo.register(AddItemResponse.class);
+        kryo.register(RemoveItemRequest.class);
+        kryo.register(RemoveItemResponse.class);
+        kryo.register(UseItemRequest.class);
+        kryo.register(UseItemResponse.class);
+        
         // Data models
         kryo.register(PlayerData.class);
         kryo.register(CharacterData.class);
         kryo.register(CharacterClass.class);
         kryo.register(Ability.class);
         kryo.register(CombatAction.class);
+        kryo.register(Item.class);
+        kryo.register(ItemType.class);
+        kryo.register(ItemRarity.class);
+        kryo.register(InventoryItem.class);
+        kryo.register(Inventory.class);
         kryo.register(java.util.ArrayList.class);
         kryo.register(java.util.HashMap.class);
         kryo.register(String[].class);
@@ -189,5 +202,37 @@ public class Network {
         public long playerId;
         public float x;
         public float y;
+    }
+    
+    // Inventory Messages
+    public static class AddItemRequest {
+        public long itemId;
+        public int quantity;
+    }
+    
+    public static class AddItemResponse {
+        public boolean success;
+        public String message;
+    }
+    
+    public static class RemoveItemRequest {
+        public long itemId;
+        public int quantity;
+    }
+    
+    public static class RemoveItemResponse {
+        public boolean success;
+        public String message;
+    }
+    
+    public static class UseItemRequest {
+        public int slotIndex;
+    }
+    
+    public static class UseItemResponse {
+        public boolean success;
+        public String message;
+        public int healthRestored;
+        public int manaRestored;
     }
 }

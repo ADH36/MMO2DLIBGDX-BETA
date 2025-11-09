@@ -30,6 +30,12 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
 - **Open World**: Tile-based world with player movement and multiplayer synchronization
 - **Chat System**: Real-time chat with other players
 - **Real-time Multiplayer**: See and interact with other players in the world
+- **Item and Inventory System**: Full inventory management
+  - 20-slot inventory with stackable items
+  - Item rarity system (Common, Uncommon, Rare, Epic, Legendary)
+  - Consumables, weapons, armor, materials, and quest items
+  - Gold currency system
+  - Starter items for new characters
 
 ### Server Features
 - **Authentication Management**: Secure login and registration
@@ -45,6 +51,10 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
 - **Player Management**: Track active players and sessions
 - **Monitoring Dashboard**: Real-time server statistics and player information
 - **Ability System**: Server-validated ability usage
+- **Inventory System**: Server-side inventory management
+  - Item usage validation
+  - Effect application (health/mana restoration)
+  - Inventory state synchronization
 
 ## Project Structure
 
@@ -140,8 +150,10 @@ Default test account:
 - **1-4**: Use abilities (attacks selected target)
 - **TAB**: Cycle through nearby targets
 - **T**: Target nearest player
+- **I**: Open/close inventory
+- **0-9**: Use item in inventory slot (when inventory is open)
 - **ENTER**: Open chat
-- **ESC**: Return to character selection
+- **ESC**: Return to character selection (or close inventory if open)
 
 ### Combat System
 - **Targeting**: Use TAB to cycle targets or T to target nearest enemy
@@ -152,6 +164,15 @@ Default test account:
 - **Death/Respawn**: Auto-respawn 3 seconds after death with full HP/MP
 
 See [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md) for detailed combat mechanics.
+
+### Inventory System
+- Press **I** to open/close inventory
+- **20 slots** for items
+- Press **0-9** to use consumable items in slots 0-9
+- **Item Rarity**: Common (white), Uncommon (green), Rare (blue), Epic (purple), Legendary (orange)
+- **Item Types**: Consumables, Weapons, Armor, Materials, Quest items
+- **Gold**: Currency system for future trading
+- **Starter Items**: New characters begin with health/mana potions, basic weapon and armor
 
 ### Chat System
 - Press **ENTER** to activate chat
@@ -238,7 +259,9 @@ The game uses KryoNet for efficient client-server communication:
 
 - Database persistence (currently in-memory)
 - ~~Combat system implementation~~ ✅ **COMPLETED**
-- Item and inventory system
+- ~~Item and inventory system~~ ✅ **COMPLETED**
+- Equipment system (equipping weapons/armor)
+- Item trading between players
 - Quests and NPCs
 - Guilds and parties
 - PvP and PvE content (PvP combat ✅ completed)
