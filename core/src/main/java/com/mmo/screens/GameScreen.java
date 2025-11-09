@@ -83,6 +83,12 @@ public class GameScreen implements Screen {
                 } else if (object instanceof Network.CombatEvent) {
                     Network.CombatEvent event = (Network.CombatEvent) object;
                     handleCombatEvent(event);
+                } else if (object instanceof Network.PlayerDeath) {
+                    Network.PlayerDeath death = (Network.PlayerDeath) object;
+                    handlePlayerDeath(death);
+                } else if (object instanceof Network.PlayerRespawn) {
+                    Network.PlayerRespawn respawn = (Network.PlayerRespawn) object;
+                    handlePlayerRespawn(respawn);
                 }
             }
         });
@@ -145,6 +151,30 @@ public class GameScreen implements Screen {
         if (message.length() > 0) {
             addChatMessage(message.toString());
             showCombatFeedback(message.toString());
+        }
+    }
+    
+    private void handlePlayerDeath(Network.PlayerDeath death) {
+        String message;
+        if (death.playerId == playerData.getPlayerId()) {
+            message = "You were killed by " + death.killerName + "! Respawning...";
+            showCombatFeedback("YOU DIED!");
+        } else if (death.killerId == playerData.getPlayerId()) {
+            message = "You killed " + death.playerName + "!";
+            showCombatFeedback("ENEMY SLAIN!");
+        } else {
+            message = death.playerName + " was killed by " + death.killerName;
+        }
+        addChatMessage(message);
+    }
+    
+    private void handlePlayerRespawn(Network.PlayerRespawn respawn) {
+        if (respawn.playerId == playerData.getPlayerId()) {
+            playerPosition.set(respawn.x, respawn.y);
+            playerData.getCharacter().setX(respawn.x);
+            playerData.getCharacter().setY(respawn.y);
+            addChatMessage("You have respawned!");
+            showCombatFeedback("RESPAWNED");
         }
     }
     

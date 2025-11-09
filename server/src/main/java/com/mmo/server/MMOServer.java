@@ -341,6 +341,11 @@ public class MMOServer {
                     int actualDamage = Math.max(1, damage - targetChar.getDefense() / 2);
                     targetChar.setHealth(Math.max(0, targetChar.getHealth() - actualDamage));
                     damage = actualDamage;
+                    
+                    // Check for death
+                    if (targetChar.getHealth() <= 0) {
+                        handlePlayerDeath(targetPlayer, playerData);
+                    }
                 } else if (healing > 0) {
                     targetChar.setHealth(Math.min(targetChar.getMaxHealth(), targetChar.getHealth() + healing));
                 }
@@ -409,6 +414,50 @@ public class MMOServer {
             abilityRequest.targetPlayerId = request.targetPlayerId;
             handleUseAbility(connection, abilityRequest);
         }
+    }
+    
+    private void handlePlayerDeath(PlayerData deadPlayer, PlayerData killer) {
+        // Broadcast death message
+        Network.PlayerDeath deathMsg = new Network.PlayerDeath();
+        deathMsg.playerId = deadPlayer.getPlayerId();
+        deathMsg.playerName = deadPlayer.getCharacter().getName();
+        deathMsg.killerId = killer.getPlayerId();
+        deathMsg.killerName = killer.getCharacter().getName();
+        
+        for (Connection conn : activePlayers.keySet()) {
+            conn.sendTCP(deathMsg);
+        }
+        
+        System.out.println(deadPlayer.getCharacter().getName() + " was killed by " + killer.getCharacter().getName());
+        
+        // Respawn player after 3 seconds
+        Timer respawnTimer = new Timer();
+        respawnTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                respawnPlayer(deadPlayer);
+            }
+        }, 3000);
+    }
+    
+    private void respawnPlayer(PlayerData player) {
+        CharacterData character = player.getCharacter();
+        character.setHealth(character.getMaxHealth());
+        character.setMana(character.getMaxMana());
+        character.setX(100);
+        character.setY(100);
+        
+        // Broadcast respawn
+        Network.PlayerRespawn respawnMsg = new Network.PlayerRespawn();
+        respawnMsg.playerId = player.getPlayerId();
+        respawnMsg.x = 100;
+        respawnMsg.y = 100;
+        
+        for (Connection conn : activePlayers.keySet()) {
+            conn.sendTCP(respawnMsg);
+        }
+        
+        System.out.println(character.getName() + " respawned");
     }
     
     private void handleDisconnect(Connection connection) {

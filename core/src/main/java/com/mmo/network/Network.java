@@ -42,6 +42,8 @@ public class Network {
         kryo.register(UseAbilityResponse.class);
         kryo.register(CombatEvent.class);
         kryo.register(AttackRequest.class);
+        kryo.register(PlayerDeath.class);
+        kryo.register(PlayerRespawn.class);
         
         // Data models
         kryo.register(PlayerData.class);
@@ -174,5 +176,18 @@ public class Network {
         public int targetHealthAfter;
         public int attackerManaAfter;
         public long timestamp;
+    }
+    
+    public static class PlayerDeath {
+        public long playerId;
+        public String playerName;
+        public long killerId;
+        public String killerName;
+    }
+    
+    public static class PlayerRespawn {
+        public long playerId;
+        public float x;
+        public float y;
     }
 }
