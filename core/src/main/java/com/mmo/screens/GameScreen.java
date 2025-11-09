@@ -11,6 +11,8 @@ import com.badlogic.gdx.math.Vector2;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.mmo.game.MMOGame;
+import com.mmo.graphics.ParticleSystem;
+import com.mmo.graphics.PlayerAnimation;
 import com.mmo.models.Ability;
 import com.mmo.models.PlayerData;
 import com.mmo.network.Network;
@@ -27,11 +29,16 @@ public class GameScreen implements Screen {
     private final PlayerData playerData;
     private final OrthographicCamera camera;
     private final WorldRenderer worldRenderer;
+    private final ParticleSystem particleSystem;
+    private final PlayerAnimation playerAnimation;
+    private final Map<Long, PlayerAnimation> otherPlayerAnimations;
     
     private Map<Long, Network.PlayerUpdate> otherPlayers;
     private Vector2 playerPosition;
     private Vector2 playerVelocity;
     private float moveSpeed = 150f;
+    private float cameraShake = 0f;
+    private Vector2 cameraOffset = new Vector2();
     
     private String chatMessage = "";
     private boolean chatActive = false;
@@ -54,6 +61,9 @@ public class GameScreen implements Screen {
         camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         
         worldRenderer = new WorldRenderer();
+        particleSystem = new ParticleSystem();
+        playerAnimation = new PlayerAnimation();
+        otherPlayerAnimations = new HashMap<>();
         otherPlayers = new HashMap<>();
         
         playerPosition = new Vector2(playerData.getCharacter().getX(), playerData.getCharacter().getY());
@@ -124,14 +134,29 @@ public class GameScreen implements Screen {
     private void handleCombatEvent(Network.CombatEvent event) {
         StringBuilder message = new StringBuilder();
         
+        // Get target position for particle effects
+        float targetX = playerPosition.x;
+        float targetY = playerPosition.y;
+        
+        if (event.targetId != playerData.getPlayerId()) {
+            Network.PlayerUpdate target = otherPlayers.get(event.targetId);
+            if (target != null) {
+                targetX = target.x;
+                targetY = target.y;
+            }
+        }
+        
         if (event.attackerId == playerData.getPlayerId()) {
             // You attacked someone
             if (event.damage > 0) {
                 message.append("You hit ").append(event.targetName).append(" with ").append(event.abilityName);
                 if (event.isCritical) message.append(" (CRITICAL!)");
                 message.append(" for ").append(event.damage).append(" damage!");
+                particleSystem.createHitEffect(targetX, targetY, event.isCritical);
+                playerAnimation.playAttackAnimation();
             } else if (event.healing > 0) {
                 message.append("You healed ").append(event.targetName).append(" for ").append(event.healing).append(" HP!");
+                particleSystem.createHealEffect(targetX, targetY);
             }
         } else if (event.targetId == playerData.getPlayerId()) {
             // You were attacked
@@ -141,9 +166,12 @@ public class GameScreen implements Screen {
                 message.append(" for ").append(event.damage).append(" damage!");
                 // Update local health
                 playerData.getCharacter().setHealth(event.targetHealthAfter);
+                particleSystem.createHitEffect(playerPosition.x, playerPosition.y, event.isCritical);
+                cameraShake = event.isCritical ? 15f : 8f;
             } else if (event.healing > 0) {
                 message.append(event.attackerName).append(" healed you for ").append(event.healing).append(" HP!");
                 playerData.getCharacter().setHealth(event.targetHealthAfter);
+                particleSystem.createHealEffect(playerPosition.x, playerPosition.y);
             }
         } else {
             // Someone else's combat
@@ -151,6 +179,7 @@ public class GameScreen implements Screen {
                 message.append(event.attackerName).append(" hit ").append(event.targetName).append(" for ").append(event.damage);
                 if (event.isCritical) message.append(" CRIT");
                 message.append("!");
+                particleSystem.createHitEffect(targetX, targetY, event.isCritical);
             }
         }
         
@@ -194,6 +223,7 @@ public class GameScreen implements Screen {
                 );
                 playerData.getCharacter().setHealth(newHealth);
                 showCombatFeedback("+" + response.healthRestored + " HP");
+                particleSystem.createHealEffect(playerPosition.x, playerPosition.y);
             }
             if (response.manaRestored > 0) {
                 int newMana = Math.min(
@@ -202,6 +232,7 @@ public class GameScreen implements Screen {
                 );
                 playerData.getCharacter().setMana(newMana);
                 showCombatFeedback("+" + response.manaRestored + " MP");
+                particleSystem.createBurst(playerPosition.x, playerPosition.y, Color.CYAN, 15, 100f);
             }
             addChatMessage(response.message);
         } else {
@@ -219,6 +250,33 @@ public class GameScreen implements Screen {
     }
     
     private void update(float delta) {
+        // Update particles
+        particleSystem.update(delta);
+        
+        // Update player animation
+        boolean isMoving = playerVelocity.len() > 0;
+        playerAnimation.update(delta, isMoving, playerVelocity.x, playerVelocity.y);
+        
+        // Update other player animations
+        for (Map.Entry<Long, Network.PlayerUpdate> entry : otherPlayers.entrySet()) {
+            if (!otherPlayerAnimations.containsKey(entry.getKey())) {
+                otherPlayerAnimations.put(entry.getKey(), new PlayerAnimation());
+            }
+            // Assume other players are idle (we don't have their velocity)
+            otherPlayerAnimations.get(entry.getKey()).update(delta, false, 0, 0);
+        }
+        
+        // Update camera shake
+        if (cameraShake > 0) {
+            cameraShake = Math.max(0, cameraShake - delta * 30f);
+            cameraOffset.set(
+                (float)(Math.random() - 0.5f) * cameraShake,
+                (float)(Math.random() - 0.5f) * cameraShake
+            );
+        } else {
+            cameraOffset.set(0, 0);
+        }
+        
         // Clear combat feedback if expired
         if (System.currentTimeMillis() > combatFeedbackTime) {
             combatFeedback = "";
@@ -233,8 +291,8 @@ public class GameScreen implements Screen {
         handleChatInput();
         handleInventoryInput();
         
-        // Update camera to follow player
-        camera.position.set(playerPosition.x, playerPosition.y, 0);
+        // Update camera to follow player with shake
+        camera.position.set(playerPosition.x + cameraOffset.x, playerPosition.y + cameraOffset.y, 0);
         camera.update();
     }
     
@@ -261,6 +319,12 @@ public class GameScreen implements Screen {
         
         // Update position
         playerPosition.add(playerVelocity.x * delta, playerVelocity.y * delta);
+        
+        // Create movement trail particles
+        if (playerVelocity.len() > 0 && Math.random() < 0.3) {
+            particleSystem.createMovementTrail(playerPosition.x, playerPosition.y, 
+                new Color(0.5f, 0.5f, 1f, 0.5f));
+        }
         
         // Send position update to server
         if (playerVelocity.len() > 0) {
@@ -574,23 +638,35 @@ public class GameScreen implements Screen {
     private void drawPlayers() {
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        // Draw other players
+        // Draw particles first (under players)
+        particleSystem.render(game.shapeRenderer);
+        
+        game.shapeRenderer.end();
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        // Draw other players with animations
         for (Network.PlayerUpdate player : otherPlayers.values()) {
             // Highlight selected target
             if (player.playerId == selectedTargetId) {
                 game.shapeRenderer.setColor(Color.YELLOW);
                 game.shapeRenderer.circle(player.x, player.y, 25); // Outer highlight circle
             }
-            game.shapeRenderer.setColor(Color.RED);
-            game.shapeRenderer.circle(player.x, player.y, 20);
+            
+            // Use animation for other players
+            PlayerAnimation anim = otherPlayerAnimations.get(player.playerId);
+            if (anim != null) {
+                anim.render(game.shapeRenderer, player.x, player.y, Color.RED, 20);
+            } else {
+                game.shapeRenderer.setColor(Color.RED);
+                game.shapeRenderer.circle(player.x, player.y, 20);
+            }
             
             // Draw health bar
             drawHealthBar(player.x, player.y, player.health, player.maxHealth);
         }
         
-        // Draw local player
-        game.shapeRenderer.setColor(Color.BLUE);
-        game.shapeRenderer.circle(playerPosition.x, playerPosition.y, 20);
+        // Draw local player with animation
+        playerAnimation.render(game.shapeRenderer, playerPosition.x, playerPosition.y, Color.BLUE, 20);
         
         // Draw local player health bar
         drawHealthBar(playerPosition.x, playerPosition.y, 
@@ -618,16 +694,33 @@ public class GameScreen implements Screen {
     
     private void drawHealthBar(float x, float y, int health, int maxHealth) {
         float barWidth = 40;
-        float barHeight = 4;
+        float barHeight = 5;
         float healthPercent = (float)health / maxHealth;
         
-        // Background (red)
-        game.shapeRenderer.setColor(Color.RED);
+        // Shadow
+        game.shapeRenderer.setColor(0, 0, 0, 0.5f);
+        game.shapeRenderer.rect(x - barWidth / 2 + 1, y + 29, barWidth, barHeight);
+        
+        // Background (dark red)
+        game.shapeRenderer.setColor(0.3f, 0, 0, 0.8f);
         game.shapeRenderer.rect(x - barWidth / 2, y + 30, barWidth, barHeight);
         
-        // Health (green)
-        game.shapeRenderer.setColor(Color.GREEN);
+        // Health bar with color gradient based on health percentage
+        Color healthColor;
+        if (healthPercent > 0.6f) {
+            healthColor = new Color(0, 0.8f, 0, 1); // Green
+        } else if (healthPercent > 0.3f) {
+            healthColor = new Color(1f, 0.8f, 0, 1); // Yellow
+        } else {
+            healthColor = new Color(1f, 0.2f, 0, 1); // Red
+        }
+        
+        game.shapeRenderer.setColor(healthColor);
         game.shapeRenderer.rect(x - barWidth / 2, y + 30, barWidth * healthPercent, barHeight);
+        
+        // Highlight on top of health bar
+        game.shapeRenderer.setColor(1, 1, 1, 0.3f);
+        game.shapeRenderer.rect(x - barWidth / 2, y + 30 + barHeight - 1, barWidth * healthPercent, 1);
         
         // Border
         game.shapeRenderer.setColor(Color.BLACK);
