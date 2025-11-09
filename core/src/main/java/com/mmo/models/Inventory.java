@@ -142,6 +142,21 @@ public class Inventory {
             .sum();
     }
     
+    /**
+     * Remove an item from a specific slot (for equipping)
+     * @return the removed item, or null if slot is empty
+     */
+    public Item removeItemFromSlot(int slotIndex) {
+        InventoryItem invItem = getItemAtSlot(slotIndex);
+        if (invItem == null) {
+            return null;
+        }
+        
+        Item item = invItem.getItem();
+        items.remove(invItem);
+        return item;
+    }
+    
     // Getters and setters
     public int getMaxSize() { return maxSize; }
     public void setMaxSize(int maxSize) { this.maxSize = maxSize; }

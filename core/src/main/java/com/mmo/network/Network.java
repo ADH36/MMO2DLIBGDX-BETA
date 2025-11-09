@@ -53,6 +53,12 @@ public class Network {
         kryo.register(UseItemRequest.class);
         kryo.register(UseItemResponse.class);
         
+        // Equipment messages
+        kryo.register(EquipItemRequest.class);
+        kryo.register(EquipItemResponse.class);
+        kryo.register(UnequipItemRequest.class);
+        kryo.register(UnequipItemResponse.class);
+        
         // Data models
         kryo.register(PlayerData.class);
         kryo.register(CharacterData.class);
@@ -65,6 +71,7 @@ public class Network {
         kryo.register(ItemRarity.class);
         kryo.register(InventoryItem.class);
         kryo.register(Inventory.class);
+        kryo.register(EquipmentSlot.class);
         kryo.register(java.util.ArrayList.class);
         kryo.register(java.util.HashMap.class);
         kryo.register(String[].class);
@@ -236,5 +243,26 @@ public class Network {
         public String message;
         public int healthRestored;
         public int manaRestored;
+    }
+    
+    // Equipment Messages
+    public static class EquipItemRequest {
+        public int slotIndex; // Inventory slot index to equip from
+    }
+    
+    public static class EquipItemResponse {
+        public boolean success;
+        public String message;
+        public CharacterData updatedCharacter; // Updated character with new stats
+    }
+    
+    public static class UnequipItemRequest {
+        public EquipmentSlot equipmentSlot; // Which equipment slot to unequip
+    }
+    
+    public static class UnequipItemResponse {
+        public boolean success;
+        public String message;
+        public CharacterData updatedCharacter; // Updated character with new stats
     }
 }

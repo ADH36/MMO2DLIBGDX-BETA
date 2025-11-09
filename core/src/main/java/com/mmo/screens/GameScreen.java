@@ -108,6 +108,12 @@ public class GameScreen implements Screen {
                 } else if (object instanceof Network.UseItemResponse) {
                     Network.UseItemResponse response = (Network.UseItemResponse) object;
                     handleUseItemResponse(response);
+                } else if (object instanceof Network.EquipItemResponse) {
+                    Network.EquipItemResponse response = (Network.EquipItemResponse) object;
+                    handleEquipItemResponse(response);
+                } else if (object instanceof Network.UnequipItemResponse) {
+                    Network.UnequipItemResponse response = (Network.UnequipItemResponse) object;
+                    handleUnequipItemResponse(response);
                 }
             }
         });
@@ -266,6 +272,33 @@ public class GameScreen implements Screen {
                 showCombatFeedback("+" + response.manaRestored + " MP");
                 particleSystem.createBurst(playerPosition.x, playerPosition.y, Color.CYAN, 15, 100f);
             }
+            addChatMessage(response.message);
+        } else {
+            showCombatFeedback(response.message);
+        }
+    }
+    
+    private void handleEquipItemResponse(Network.EquipItemResponse response) {
+        if (response.success) {
+            // Update local character with updated stats from server
+            if (response.updatedCharacter != null) {
+                playerData.setCharacter(response.updatedCharacter);
+            }
+            showCombatFeedback(response.message);
+            addChatMessage(response.message);
+            particleSystem.createBurst(playerPosition.x, playerPosition.y, Color.GOLD, 20, 120f);
+        } else {
+            showCombatFeedback(response.message);
+        }
+    }
+    
+    private void handleUnequipItemResponse(Network.UnequipItemResponse response) {
+        if (response.success) {
+            // Update local character with updated stats from server
+            if (response.updatedCharacter != null) {
+                playerData.setCharacter(response.updatedCharacter);
+            }
+            showCombatFeedback(response.message);
             addChatMessage(response.message);
         } else {
             showCombatFeedback(response.message);
@@ -622,6 +655,26 @@ public class GameScreen implements Screen {
                     break;
                 }
             }
+            
+            // Equip/unequip items with E key (0-9 for slots 0-9)
+            if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+                for (int i = Input.Keys.NUM_0; i <= Input.Keys.NUM_9; i++) {
+                    if (Gdx.input.isKeyPressed(i)) {
+                        int slotIndex = i - Input.Keys.NUM_0;
+                        equipInventoryItem(slotIndex);
+                        break;
+                    }
+                }
+            }
+            
+            // Unequip weapon with U+W
+            if (Gdx.input.isKeyJustPressed(Input.Keys.U)) {
+                if (Gdx.input.isKeyPressed(Input.Keys.W)) {
+                    unequipItem(com.mmo.models.EquipmentSlot.WEAPON);
+                } else if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+                    unequipItem(com.mmo.models.EquipmentSlot.ARMOR);
+                }
+            }
         }
     }
     
@@ -641,6 +694,39 @@ public class GameScreen implements Screen {
         // Send use item request to server
         Network.UseItemRequest request = new Network.UseItemRequest();
         request.slotIndex = slotIndex;
+        game.client.sendTCP(request);
+    }
+    
+    private void equipInventoryItem(int slotIndex) {
+        com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
+        if (invItem == null) {
+            showCombatFeedback("No item in slot " + slotIndex);
+            return;
+        }
+        
+        // Check if item is equippable
+        com.mmo.models.ItemType type = invItem.getItem().getType();
+        if (type != com.mmo.models.ItemType.WEAPON && type != com.mmo.models.ItemType.ARMOR) {
+            showCombatFeedback("Cannot equip this item");
+            return;
+        }
+        
+        // Send equip item request to server
+        Network.EquipItemRequest request = new Network.EquipItemRequest();
+        request.slotIndex = slotIndex;
+        game.client.sendTCP(request);
+    }
+    
+    private void unequipItem(com.mmo.models.EquipmentSlot equipmentSlot) {
+        // Check if there's an item in this slot
+        if (!playerData.getCharacter().hasEquippedItem(equipmentSlot)) {
+            showCombatFeedback("No item equipped in this slot");
+            return;
+        }
+        
+        // Send unequip item request to server
+        Network.UnequipItemRequest request = new Network.UnequipItemRequest();
+        request.equipmentSlot = equipmentSlot;
         game.client.sendTCP(request);
     }
     
@@ -992,9 +1078,53 @@ public class GameScreen implements Screen {
         }
         
         // Instructions
-        game.font.getData().setScale(0.9f);
+        game.font.getData().setScale(0.8f);
         game.font.setColor(Color.LIGHT_GRAY);
-        game.font.draw(game.batch, "0-9: Use item | ESC: Close", panelX + 20, panelY + 25);
+        game.font.draw(game.batch, "0-9: Use | E+0-9: Equip | U+W: Unequip Weapon | U+A: Unequip Armor", 
+                      panelX + 20, panelY + 25);
+        
+        // Draw equipped items section
+        int equipX = panelX + 380;
+        int equipY = panelY + panelHeight - 80;
+        
+        game.font.getData().setScale(1.2f);
+        game.font.setColor(Color.GOLD);
+        game.font.draw(game.batch, "Equipped:", equipX, equipY + 30);
+        
+        game.font.getData().setScale(0.9f);
+        
+        // Show equipped weapon
+        com.mmo.models.Item weaponItem = playerData.getCharacter().getEquippedItem(com.mmo.models.EquipmentSlot.WEAPON);
+        if (weaponItem != null) {
+            game.font.setColor(getRarityColor(weaponItem.getRarity()));
+            game.font.draw(game.batch, "Weapon:", equipX, equipY);
+            game.font.draw(game.batch, weaponItem.getName(), equipX + 10, equipY - 20);
+            game.font.setColor(Color.GREEN);
+            game.font.getData().setScale(0.7f);
+            game.font.draw(game.batch, "ATK +" + weaponItem.getAttackBonus(), equipX + 10, equipY - 35);
+            game.font.getData().setScale(0.9f);
+        } else {
+            game.font.setColor(Color.GRAY);
+            game.font.draw(game.batch, "Weapon: None", equipX, equipY);
+        }
+        
+        // Show equipped armor
+        com.mmo.models.Item armorItem = playerData.getCharacter().getEquippedItem(com.mmo.models.EquipmentSlot.ARMOR);
+        if (armorItem != null) {
+            game.font.setColor(getRarityColor(armorItem.getRarity()));
+            game.font.draw(game.batch, "Armor:", equipX, equipY - 80);
+            game.font.draw(game.batch, armorItem.getName(), equipX + 10, equipY - 100);
+            game.font.setColor(Color.GREEN);
+            game.font.getData().setScale(0.7f);
+            String bonusText = "";
+            if (armorItem.getDefenseBonus() > 0) bonusText += "DEF +" + armorItem.getDefenseBonus() + " ";
+            if (armorItem.getHealthBonus() > 0) bonusText += "HP +" + armorItem.getHealthBonus();
+            game.font.draw(game.batch, bonusText, equipX + 10, equipY - 115);
+            game.font.getData().setScale(0.9f);
+        } else {
+            game.font.setColor(Color.GRAY);
+            game.font.draw(game.batch, "Armor: None", equipX, equipY - 80);
+        }
     }
     
     private Color getRarityColor(com.mmo.models.ItemRarity rarity) {
