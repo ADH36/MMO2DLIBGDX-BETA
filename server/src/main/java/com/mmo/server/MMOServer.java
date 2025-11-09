@@ -3,6 +3,7 @@ package com.mmo.server;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.esotericsoftware.kryonet.Server;
+import com.mmo.models.Ability;
 import com.mmo.models.CharacterClass;
 import com.mmo.models.CharacterData;
 import com.mmo.models.PlayerData;
@@ -92,6 +93,8 @@ public class MMOServer {
             handleChatMessage(connection, (Network.ChatMessage) object);
         } else if (object instanceof Network.UseAbilityRequest) {
             handleUseAbility(connection, (Network.UseAbilityRequest) object);
+        } else if (object instanceof Network.AttackRequest) {
+            handleAttack(connection, (Network.AttackRequest) object);
         }
     }
     
@@ -256,23 +259,153 @@ public class MMOServer {
         
         PlayerData playerData = activePlayers.get(connection);
         if (playerData != null) {
-            if (request.abilityIndex >= 0 && 
-                request.abilityIndex < playerData.getCharacter().getAbilities().size()) {
-                
-                response.success = true;
-                response.message = "Ability used successfully";
-                
-                System.out.println(playerData.getCharacter().getName() + " used ability " + request.abilityIndex);
-            } else {
+            CharacterData character = playerData.getCharacter();
+            
+            // Validate ability index
+            if (request.abilityIndex < 0 || request.abilityIndex >= character.getAbilities().size()) {
                 response.success = false;
                 response.message = "Invalid ability index";
+                connection.sendTCP(response);
+                return;
             }
+            
+            Ability ability = character.getAbilities().get(request.abilityIndex);
+            
+            // Check cooldown
+            if (!character.isAbilityReady(request.abilityIndex)) {
+                response.success = false;
+                response.message = "Ability is on cooldown";
+                response.currentMana = character.getMana();
+                response.currentHealth = character.getHealth();
+                connection.sendTCP(response);
+                return;
+            }
+            
+            // Check mana
+            if (character.getMana() < ability.getManaCost()) {
+                response.success = false;
+                response.message = "Not enough mana";
+                response.currentMana = character.getMana();
+                response.currentHealth = character.getHealth();
+                connection.sendTCP(response);
+                return;
+            }
+            
+            // Find target player
+            PlayerData targetPlayer = null;
+            if (request.targetPlayerId > 0) {
+                for (PlayerData pd : activePlayers.values()) {
+                    if (pd.getPlayerId() == request.targetPlayerId) {
+                        targetPlayer = pd;
+                        break;
+                    }
+                }
+            }
+            
+            // Calculate damage/healing
+            int damage = ability.getDamage();
+            int healing = ability.getHealing();
+            boolean isCritical = Math.random() < 0.15; // 15% crit chance
+            
+            if (isCritical && damage > 0) {
+                damage = (int)(damage * 1.5); // 150% damage on crit
+            }
+            
+            // Apply effects
+            character.setMana(character.getMana() - ability.getManaCost());
+            character.setAbilityCooldown(request.abilityIndex, ability.getCooldown());
+            
+            if (targetPlayer != null) {
+                CharacterData targetChar = targetPlayer.getCharacter();
+                
+                // Check range
+                float distance = (float)Math.sqrt(
+                    Math.pow(character.getX() - targetChar.getX(), 2) + 
+                    Math.pow(character.getY() - targetChar.getY(), 2)
+                );
+                
+                if (distance > ability.getRange()) {
+                    response.success = false;
+                    response.message = "Target out of range";
+                    response.currentMana = character.getMana();
+                    response.currentHealth = character.getHealth();
+                    connection.sendTCP(response);
+                    return;
+                }
+                
+                // Apply damage or healing
+                if (damage > 0) {
+                    int actualDamage = Math.max(1, damage - targetChar.getDefense() / 2);
+                    targetChar.setHealth(Math.max(0, targetChar.getHealth() - actualDamage));
+                    damage = actualDamage;
+                } else if (healing > 0) {
+                    targetChar.setHealth(Math.min(targetChar.getMaxHealth(), targetChar.getHealth() + healing));
+                }
+                
+                // Broadcast combat event
+                Network.CombatEvent combatEvent = new Network.CombatEvent();
+                combatEvent.attackerId = playerData.getPlayerId();
+                combatEvent.attackerName = character.getName();
+                combatEvent.targetId = targetPlayer.getPlayerId();
+                combatEvent.targetName = targetChar.getName();
+                combatEvent.abilityName = ability.getName();
+                combatEvent.damage = damage;
+                combatEvent.healing = healing;
+                combatEvent.isCritical = isCritical;
+                combatEvent.targetHealthAfter = targetChar.getHealth();
+                combatEvent.attackerManaAfter = character.getMana();
+                combatEvent.timestamp = System.currentTimeMillis();
+                
+                for (Connection conn : activePlayers.keySet()) {
+                    conn.sendTCP(combatEvent);
+                }
+                
+                System.out.println("Combat: " + character.getName() + " used " + ability.getName() + 
+                                 " on " + targetChar.getName() + " for " + damage + " damage");
+            } else if (healing > 0) {
+                // Self-heal
+                character.setHealth(Math.min(character.getMaxHealth(), character.getHealth() + healing));
+                
+                Network.CombatEvent combatEvent = new Network.CombatEvent();
+                combatEvent.attackerId = playerData.getPlayerId();
+                combatEvent.attackerName = character.getName();
+                combatEvent.targetId = playerData.getPlayerId();
+                combatEvent.targetName = character.getName();
+                combatEvent.abilityName = ability.getName();
+                combatEvent.damage = 0;
+                combatEvent.healing = healing;
+                combatEvent.isCritical = false;
+                combatEvent.targetHealthAfter = character.getHealth();
+                combatEvent.attackerManaAfter = character.getMana();
+                combatEvent.timestamp = System.currentTimeMillis();
+                
+                for (Connection conn : activePlayers.keySet()) {
+                    conn.sendTCP(combatEvent);
+                }
+            }
+            
+            response.success = true;
+            response.message = "Ability used successfully";
+            response.currentMana = character.getMana();
+            response.currentHealth = character.getHealth();
+            
+            System.out.println(character.getName() + " used ability " + ability.getName());
         } else {
             response.success = false;
             response.message = "Player not found";
         }
         
         connection.sendTCP(response);
+    }
+    
+    private void handleAttack(Connection connection, Network.AttackRequest request) {
+        PlayerData playerData = activePlayers.get(connection);
+        if (playerData != null && request.abilityIndex >= 0) {
+            Network.UseAbilityRequest abilityRequest = new Network.UseAbilityRequest();
+            abilityRequest.abilityIndex = request.abilityIndex;
+            abilityRequest.targetPlayerId = request.targetPlayerId;
+            handleUseAbility(connection, abilityRequest);
+        }
     }
     
     private void handleDisconnect(Connection connection) {

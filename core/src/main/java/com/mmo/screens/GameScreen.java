@@ -11,6 +11,7 @@ import com.badlogic.gdx.math.Vector2;
 import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.mmo.game.MMOGame;
+import com.mmo.models.Ability;
 import com.mmo.models.PlayerData;
 import com.mmo.network.Network;
 import com.mmo.world.WorldRenderer;
@@ -36,6 +37,11 @@ public class GameScreen implements Screen {
     private boolean chatActive = false;
     private String[] chatHistory = new String[10];
     private int chatHistoryIndex = 0;
+    
+    private long selectedTargetId = -1; // Currently selected target for combat
+    private String combatFeedback = ""; // Combat feedback message
+    private long combatFeedbackTime = 0; // When to clear combat feedback
+    private static final long FEEDBACK_DURATION = 3000; // Show feedback for 3 seconds
     
     public GameScreen(MMOGame game, PlayerData playerData) {
         this.game = game;
@@ -68,8 +74,15 @@ public class GameScreen implements Screen {
                 } else if (object instanceof Network.UseAbilityResponse) {
                     Network.UseAbilityResponse response = (Network.UseAbilityResponse) object;
                     if (!response.success) {
-                        addChatMessage("Ability failed: " + response.message);
+                        showCombatFeedback(response.message);
+                    } else {
+                        // Update local character stats
+                        playerData.getCharacter().setMana(response.currentMana);
+                        playerData.getCharacter().setHealth(response.currentHealth);
                     }
+                } else if (object instanceof Network.CombatEvent) {
+                    Network.CombatEvent event = (Network.CombatEvent) object;
+                    handleCombatEvent(event);
                 }
             }
         });
@@ -91,6 +104,50 @@ public class GameScreen implements Screen {
         chatHistoryIndex = (chatHistoryIndex + 1) % chatHistory.length;
     }
     
+    private void showCombatFeedback(String message) {
+        combatFeedback = message;
+        combatFeedbackTime = System.currentTimeMillis() + FEEDBACK_DURATION;
+    }
+    
+    private void handleCombatEvent(Network.CombatEvent event) {
+        StringBuilder message = new StringBuilder();
+        
+        if (event.attackerId == playerData.getPlayerId()) {
+            // You attacked someone
+            if (event.damage > 0) {
+                message.append("You hit ").append(event.targetName).append(" with ").append(event.abilityName);
+                if (event.isCritical) message.append(" (CRITICAL!)");
+                message.append(" for ").append(event.damage).append(" damage!");
+            } else if (event.healing > 0) {
+                message.append("You healed ").append(event.targetName).append(" for ").append(event.healing).append(" HP!");
+            }
+        } else if (event.targetId == playerData.getPlayerId()) {
+            // You were attacked
+            if (event.damage > 0) {
+                message.append(event.attackerName).append(" hit you with ").append(event.abilityName);
+                if (event.isCritical) message.append(" (CRITICAL!)");
+                message.append(" for ").append(event.damage).append(" damage!");
+                // Update local health
+                playerData.getCharacter().setHealth(event.targetHealthAfter);
+            } else if (event.healing > 0) {
+                message.append(event.attackerName).append(" healed you for ").append(event.healing).append(" HP!");
+                playerData.getCharacter().setHealth(event.targetHealthAfter);
+            }
+        } else {
+            // Someone else's combat
+            if (event.damage > 0) {
+                message.append(event.attackerName).append(" hit ").append(event.targetName).append(" for ").append(event.damage);
+                if (event.isCritical) message.append(" CRIT");
+                message.append("!");
+            }
+        }
+        
+        if (message.length() > 0) {
+            addChatMessage(message.toString());
+            showCombatFeedback(message.toString());
+        }
+    }
+    
     @Override
     public void show() {}
     
@@ -101,10 +158,16 @@ public class GameScreen implements Screen {
     }
     
     private void update(float delta) {
+        // Clear combat feedback if expired
+        if (System.currentTimeMillis() > combatFeedbackTime) {
+            combatFeedback = "";
+        }
+        
         // Handle input
         if (!chatActive) {
             handleMovementInput(delta);
             handleAbilityInput();
+            handleTargetSelection();
         }
         handleChatInput();
         
@@ -155,18 +218,102 @@ public class GameScreen implements Screen {
         }
     }
     
+    private void handleTargetSelection() {
+        // Use TAB to cycle through nearby targets
+        if (Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
+            selectNextTarget();
+        }
+        
+        // Use T to target nearest enemy
+        if (Gdx.input.isKeyJustPressed(Input.Keys.T)) {
+            selectNearestTarget();
+        }
+    }
+    
+    private void selectNextTarget() {
+        if (otherPlayers.isEmpty()) {
+            selectedTargetId = -1;
+            return;
+        }
+        
+        boolean foundCurrent = false;
+        long firstId = -1;
+        
+        for (Network.PlayerUpdate player : otherPlayers.values()) {
+            if (firstId == -1) {
+                firstId = player.playerId;
+            }
+            
+            if (foundCurrent) {
+                selectedTargetId = player.playerId;
+                addChatMessage("Targeted: " + player.name);
+                return;
+            }
+            
+            if (player.playerId == selectedTargetId) {
+                foundCurrent = true;
+            }
+        }
+        
+        // Cycle back to first or select first
+        selectedTargetId = firstId;
+        if (selectedTargetId > 0) {
+            Network.PlayerUpdate target = otherPlayers.get(selectedTargetId);
+            if (target != null) {
+                addChatMessage("Targeted: " + target.name);
+            }
+        }
+    }
+    
+    private void selectNearestTarget() {
+        if (otherPlayers.isEmpty()) {
+            selectedTargetId = -1;
+            return;
+        }
+        
+        float minDistance = Float.MAX_VALUE;
+        Network.PlayerUpdate nearestPlayer = null;
+        
+        for (Network.PlayerUpdate player : otherPlayers.values()) {
+            float distance = (float)Math.sqrt(
+                Math.pow(playerPosition.x - player.x, 2) + 
+                Math.pow(playerPosition.y - player.y, 2)
+            );
+            
+            if (distance < minDistance) {
+                minDistance = distance;
+                nearestPlayer = player;
+            }
+        }
+        
+        if (nearestPlayer != null) {
+            selectedTargetId = nearestPlayer.playerId;
+            addChatMessage("Targeted: " + nearestPlayer.name + " (" + (int)minDistance + " units away)");
+        }
+    }
+    
     private void useAbility(int abilityIndex) {
         if (playerData.getCharacter().getAbilities() != null && 
             abilityIndex < playerData.getCharacter().getAbilities().size()) {
             
+            Ability ability = playerData.getCharacter().getAbilities().get(abilityIndex);
+            
             Network.UseAbilityRequest request = new Network.UseAbilityRequest();
             request.abilityIndex = abilityIndex;
+            request.targetPlayerId = selectedTargetId;
             request.targetX = playerPosition.x;
             request.targetY = playerPosition.y;
             game.client.sendTCP(request);
             
-            String abilityName = playerData.getCharacter().getAbilities().get(abilityIndex).getName();
-            addChatMessage("Used ability: " + abilityName);
+            String targetInfo = "";
+            if (selectedTargetId > 0) {
+                Network.PlayerUpdate target = otherPlayers.get(selectedTargetId);
+                if (target != null) {
+                    targetInfo = " on " + target.name;
+                }
+            }
+            
+            addChatMessage("Using " + ability.getName() + targetInfo);
         }
     }
     
@@ -245,6 +392,11 @@ public class GameScreen implements Screen {
         
         // Draw other players
         for (Network.PlayerUpdate player : otherPlayers.values()) {
+            // Highlight selected target
+            if (player.playerId == selectedTargetId) {
+                game.shapeRenderer.setColor(Color.YELLOW);
+                game.shapeRenderer.circle(player.x, player.y, 25); // Outer highlight circle
+            }
             game.shapeRenderer.setColor(Color.RED);
             game.shapeRenderer.circle(player.x, player.y, 20);
         }
@@ -294,12 +446,57 @@ public class GameScreen implements Screen {
         game.font.setColor(Color.GOLD);
         game.font.draw(game.batch, "Abilities:", uiX, uiY - 110);
         game.font.getData().setScale(1f);
-        game.font.setColor(Color.LIGHT_GRAY);
         if (playerData.getCharacter().getAbilities() != null) {
             for (int i = 0; i < Math.min(4, playerData.getCharacter().getAbilities().size()); i++) {
-                String abilityText = (i + 1) + ". " + playerData.getCharacter().getAbilities().get(i).getName();
-                game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
+                Ability ability = playerData.getCharacter().getAbilities().get(i);
+                
+                // Check if ability is on cooldown
+                boolean onCooldown = !playerData.getCharacter().isAbilityReady(i);
+                boolean notEnoughMana = playerData.getCharacter().getMana() < ability.getManaCost();
+                
+                if (onCooldown) {
+                    game.font.setColor(Color.DARK_GRAY);
+                    long cooldownRemaining = (playerData.getCharacter().getAbilityCooldowns()[i] - System.currentTimeMillis()) / 1000;
+                    String abilityText = (i + 1) + ". " + ability.getName() + " (" + cooldownRemaining + "s)";
+                    game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
+                } else if (notEnoughMana) {
+                    game.font.setColor(Color.GRAY);
+                    String abilityText = (i + 1) + ". " + ability.getName() + " (No mana)";
+                    game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
+                } else {
+                    game.font.setColor(Color.LIGHT_GRAY);
+                    String abilityText = (i + 1) + ". " + ability.getName() + " (" + ability.getManaCost() + " MP)";
+                    game.font.draw(game.batch, abilityText, uiX, uiY - 135 - (i * 20));
+                }
             }
+        }
+        
+        // Draw target info
+        if (selectedTargetId > 0) {
+            Network.PlayerUpdate target = otherPlayers.get(selectedTargetId);
+            if (target != null) {
+                game.font.setColor(Color.YELLOW);
+                game.font.getData().setScale(1.2f);
+                game.font.draw(game.batch, "Target: " + target.name, uiX, uiY - 230);
+                
+                // Calculate distance
+                float distance = (float)Math.sqrt(
+                    Math.pow(playerPosition.x - target.x, 2) + 
+                    Math.pow(playerPosition.y - target.y, 2)
+                );
+                game.font.getData().setScale(1f);
+                game.font.setColor(Color.LIGHT_GRAY);
+                game.font.draw(game.batch, "Distance: " + (int)distance, uiX, uiY - 255);
+            }
+        }
+        
+        // Draw combat feedback
+        if (!combatFeedback.isEmpty()) {
+            game.font.getData().setScale(1.5f);
+            game.font.setColor(Color.RED);
+            float feedbackX = Gdx.graphics.getWidth() / 2 - 150;
+            float feedbackY = Gdx.graphics.getHeight() / 2 + 100;
+            game.font.draw(game.batch, combatFeedback, feedbackX, feedbackY);
         }
         
         // Draw chat
@@ -322,7 +519,7 @@ public class GameScreen implements Screen {
         // Draw controls
         game.font.setColor(Color.LIGHT_GRAY);
         game.font.getData().setScale(0.8f);
-        game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | ENTER: Chat | ESC: Exit", 10, 30);
+        game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | TAB/T: Target | ENTER: Chat | ESC: Exit", 10, 30);
         
         game.batch.end();
     }
