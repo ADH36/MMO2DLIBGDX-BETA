@@ -30,6 +30,11 @@ allprojects {
 
 project(":desktop") {
     apply plugin: "java-library"
+    apply plugin: "application"
+
+    application {
+        mainClass = "com.mmo.desktop.DesktopLauncher"
+    }
 
     dependencies {
         implementation project(":core")

@@ -410,14 +410,88 @@ public class GameScreen implements Screen {
                 }
             }
             
-            // Handle text input
-            for (int i = 0; i < 256; i++) {
+            // Handle text input using proper key mapping
+            // Handle letters (A-Z)
+            for (int i = Input.Keys.A; i <= Input.Keys.Z; i++) {
                 if (Gdx.input.isKeyJustPressed(i)) {
-                    char c = (char) i;
-                    if ((Character.isLetterOrDigit(c) || c == ' ' || c == '!' || c == '?' || c == '.') 
-                        && chatMessage.length() < 100) {
+                    char c = (char) ('a' + (i - Input.Keys.A));
+                    // Check if shift is pressed for uppercase
+                    if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ||
+                        Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+                        c = Character.toUpperCase(c);
+                    }
+                    if (chatMessage.length() < 100) {
                         chatMessage += c;
                     }
+                }
+            }
+            
+            // Handle numbers (0-9)
+            for (int i = Input.Keys.NUM_0; i <= Input.Keys.NUM_9; i++) {
+                if (Gdx.input.isKeyJustPressed(i)) {
+                    char c = (char) ('0' + (i - Input.Keys.NUM_0));
+                    if (chatMessage.length() < 100) {
+                        chatMessage += c;
+                    }
+                }
+            }
+            
+            // Handle numpad numbers
+            for (int i = Input.Keys.NUMPAD_0; i <= Input.Keys.NUMPAD_9; i++) {
+                if (Gdx.input.isKeyJustPressed(i)) {
+                    char c = (char) ('0' + (i - Input.Keys.NUMPAD_0));
+                    if (chatMessage.length() < 100) {
+                        chatMessage += c;
+                    }
+                }
+            }
+            
+            // Handle space and punctuation
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += " ";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.PERIOD)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += ".";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.COMMA)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += ",";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SEMICOLON)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += ";";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.APOSTROPHE)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += "'";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.SLASH)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += "/";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.MINUS)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += "-";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.EQUALS)) {
+                if (chatMessage.length() < 100) {
+                    chatMessage += "=";
                 }
             }
         }

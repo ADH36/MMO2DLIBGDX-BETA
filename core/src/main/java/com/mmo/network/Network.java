@@ -56,6 +56,7 @@ public class Network {
         // Data models
         kryo.register(PlayerData.class);
         kryo.register(CharacterData.class);
+        kryo.register(CharacterData[].class);
         kryo.register(CharacterClass.class);
         kryo.register(Ability.class);
         kryo.register(CombatAction.class);
@@ -68,6 +69,7 @@ public class Network {
         kryo.register(java.util.HashMap.class);
         kryo.register(String[].class);
         kryo.register(long[].class);
+        kryo.register(Network.PlayerUpdate[].class);
     }
     
     // Authentication Messages

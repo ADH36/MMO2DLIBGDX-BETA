@@ -149,18 +149,83 @@ public class RegisterScreen implements Screen {
             }
         }
         
-        // Handle text input
-        for (int i = 0; i < 256; i++) {
+        // Handle text input using proper key mapping
+        // Handle letters (A-Z)
+        for (int i = Input.Keys.A; i <= Input.Keys.Z; i++) {
             if (Gdx.input.isKeyJustPressed(i)) {
-                char c = (char) i;
-                if (Character.isLetterOrDigit(c) || (activeField == 2 && (c == '@' || c == '.'))) {
-                    if (activeField == 0 && username.length() < 20) {
-                        username += c;
-                    } else if (activeField == 1 && password.length() < 20) {
-                        password += c;
-                    } else if (activeField == 2 && email.length() < 50) {
-                        email += c;
-                    }
+                char c = (char) ('a' + (i - Input.Keys.A));
+                // Check if shift is pressed for uppercase
+                if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ||
+                    Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+                    c = Character.toUpperCase(c);
+                }
+                if (activeField == 0 && username.length() < 20) {
+                    username += c;
+                } else if (activeField == 1 && password.length() < 20) {
+                    password += c;
+                } else if (activeField == 2 && email.length() < 50) {
+                    email += c;
+                }
+            }
+        }
+        
+        // Handle numbers (0-9)
+        for (int i = Input.Keys.NUM_0; i <= Input.Keys.NUM_9; i++) {
+            if (Gdx.input.isKeyJustPressed(i)) {
+                char c = (char) ('0' + (i - Input.Keys.NUM_0));
+                if (activeField == 0 && username.length() < 20) {
+                    username += c;
+                } else if (activeField == 1 && password.length() < 20) {
+                    password += c;
+                } else if (activeField == 2 && email.length() < 50) {
+                    email += c;
+                }
+            }
+        }
+        
+        // Handle numpad numbers
+        for (int i = Input.Keys.NUMPAD_0; i <= Input.Keys.NUMPAD_9; i++) {
+            if (Gdx.input.isKeyJustPressed(i)) {
+                char c = (char) ('0' + (i - Input.Keys.NUMPAD_0));
+                if (activeField == 0 && username.length() < 20) {
+                    username += c;
+                } else if (activeField == 1 && password.length() < 20) {
+                    password += c;
+                } else if (activeField == 2 && email.length() < 50) {
+                    email += c;
+                }
+            }
+        }
+        
+        // Handle special characters for email
+        if (activeField == 2) {
+            // Use key code 51 for @ symbol (shift + 2)
+            if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2) &&
+                (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ||
+                 Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) {
+                if (email.length() < 50) {
+                    email += "@";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.PERIOD)) {
+                if (email.length() < 50) {
+                    email += ".";
+                }
+            }
+            
+            if (Gdx.input.isKeyJustPressed(Input.Keys.MINUS)) {
+                if (email.length() < 50) {
+                    email += "-";
+                }
+            }
+            
+            // Use key code 55 for underscore (shift + -)
+            if (Gdx.input.isKeyJustPressed(Input.Keys.MINUS) &&
+                (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) ||
+                 Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) {
+                if (email.length() < 50) {
+                    email += "_";
                 }
             }
         }
