@@ -43,6 +43,9 @@ public class GameScreen implements Screen {
     private long combatFeedbackTime = 0; // When to clear combat feedback
     private static final long FEEDBACK_DURATION = 3000; // Show feedback for 3 seconds
     
+    private boolean inventoryOpen = false; // Inventory UI state
+    private int selectedInventorySlot = -1; // Currently selected inventory slot
+    
     public GameScreen(MMOGame game, PlayerData playerData) {
         this.game = game;
         this.playerData = playerData;
@@ -194,12 +197,13 @@ public class GameScreen implements Screen {
         }
         
         // Handle input
-        if (!chatActive) {
+        if (!chatActive && !inventoryOpen) {
             handleMovementInput(delta);
             handleAbilityInput();
             handleTargetSelection();
         }
         handleChatInput();
+        handleInventoryInput();
         
         // Update camera to follow player
         camera.position.set(playerPosition.x, playerPosition.y, 0);
@@ -391,6 +395,26 @@ public class GameScreen implements Screen {
         }
     }
     
+    private void handleInventoryInput() {
+        // Toggle inventory with 'I' key
+        if (Gdx.input.isKeyJustPressed(Input.Keys.I)) {
+            inventoryOpen = !inventoryOpen;
+            if (inventoryOpen) {
+                addChatMessage("Inventory opened");
+            }
+        }
+        
+        // Handle inventory interactions when open
+        if (inventoryOpen) {
+            // Close inventory with ESC
+            if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+                inventoryOpen = false;
+                selectedInventorySlot = -1;
+                return;
+            }
+        }
+    }
+    
     private void sendChatMessage(String message) {
         Network.ChatMessage chatMsg = new Network.ChatMessage();
         chatMsg.sender = playerData.getCharacter().getName();
@@ -578,9 +602,141 @@ public class GameScreen implements Screen {
         // Draw controls
         game.font.setColor(Color.LIGHT_GRAY);
         game.font.getData().setScale(0.8f);
-        game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | TAB/T: Target | ENTER: Chat | ESC: Exit", 10, 30);
+        game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | TAB/T: Target | I: Inventory | ENTER: Chat | ESC: Exit", 10, 30);
+        
+        // Draw inventory if open
+        if (inventoryOpen) {
+            drawInventory();
+        }
         
         game.batch.end();
+    }
+    
+    private void drawInventory() {
+        int screenWidth = Gdx.graphics.getWidth();
+        int screenHeight = Gdx.graphics.getHeight();
+        
+        // Background panel
+        int panelWidth = 600;
+        int panelHeight = 450;
+        int panelX = (screenWidth - panelWidth) / 2;
+        int panelY = (screenHeight - panelHeight) / 2;
+        
+        // End batch to use shape renderer
+        game.batch.end();
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        game.shapeRenderer.setColor(0, 0, 0, 0.8f);
+        game.shapeRenderer.rect(panelX, panelY, panelWidth, panelHeight);
+        game.shapeRenderer.end();
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        game.shapeRenderer.setColor(Color.GOLD);
+        game.shapeRenderer.rect(panelX, panelY, panelWidth, panelHeight);
+        game.shapeRenderer.end();
+        
+        // Begin batch again for text
+        game.batch.begin();
+        
+        // Title
+        game.font.getData().setScale(1.5f);
+        game.font.setColor(Color.GOLD);
+        game.font.draw(game.batch, "Inventory", panelX + 20, panelY + panelHeight - 20);
+        
+        // Gold
+        game.font.getData().setScale(1.2f);
+        game.font.setColor(Color.YELLOW);
+        int gold = playerData.getCharacter().getInventory().getGold();
+        game.font.draw(game.batch, "Gold: " + gold, panelX + panelWidth - 150, panelY + panelHeight - 20);
+        
+        // End batch for grid rendering
+        game.batch.end();
+        
+        // Draw inventory grid (4 columns x 5 rows = 20 slots)
+        int slotSize = 70;
+        int slotPadding = 10;
+        int columns = 4;
+        int rows = 5;
+        int gridStartX = panelX + 30;
+        int gridStartY = panelY + panelHeight - 80;
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                int slotIndex = row * columns + col;
+                int slotX = gridStartX + col * (slotSize + slotPadding);
+                int slotY = gridStartY - row * (slotSize + slotPadding);
+                
+                // Slot background
+                game.shapeRenderer.setColor(0.2f, 0.2f, 0.2f, 1f);
+                game.shapeRenderer.rect(slotX, slotY, slotSize, slotSize);
+            }
+        }
+        
+        game.shapeRenderer.end();
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                int slotIndex = row * columns + col;
+                int slotX = gridStartX + col * (slotSize + slotPadding);
+                int slotY = gridStartY - row * (slotSize + slotPadding);
+                
+                // Slot border
+                game.shapeRenderer.setColor(Color.GRAY);
+                game.shapeRenderer.rect(slotX, slotY, slotSize, slotSize);
+            }
+        }
+        
+        game.shapeRenderer.end();
+        
+        // Begin batch again for item text
+        game.batch.begin();
+        
+        // Draw items in inventory
+        game.font.getData().setScale(1f);
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                int slotIndex = row * columns + col;
+                int slotX = gridStartX + col * (slotSize + slotPadding);
+                int slotY = gridStartY - row * (slotSize + slotPadding);
+                
+                com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
+                if (invItem != null) {
+                    // Draw item name
+                    game.font.setColor(getRarityColor(invItem.getItem().getRarity()));
+                    String itemName = invItem.getItem().getName();
+                    if (itemName.length() > 8) {
+                        itemName = itemName.substring(0, 8);
+                    }
+                    game.font.draw(game.batch, itemName, slotX + 5, slotY + slotSize - 10);
+                    
+                    // Draw quantity if stackable
+                    if (invItem.getItem().isStackable()) {
+                        game.font.setColor(Color.WHITE);
+                        game.font.draw(game.batch, "x" + invItem.getQuantity(), slotX + 5, slotY + 15);
+                    }
+                }
+            }
+        }
+        
+        // Instructions
+        game.font.getData().setScale(0.9f);
+        game.font.setColor(Color.LIGHT_GRAY);
+        game.font.draw(game.batch, "ESC to close", panelX + 20, panelY + 25);
+    }
+    
+    private Color getRarityColor(com.mmo.models.ItemRarity rarity) {
+        switch (rarity) {
+            case COMMON: return Color.WHITE;
+            case UNCOMMON: return Color.GREEN;
+            case RARE: return Color.BLUE;
+            case EPIC: return Color.PURPLE;
+            case LEGENDARY: return Color.ORANGE;
+            default: return Color.GRAY;
+        }
     }
     
     @Override

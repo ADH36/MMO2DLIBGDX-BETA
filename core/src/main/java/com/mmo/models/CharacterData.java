@@ -23,11 +23,13 @@ public class CharacterData {
     private long createdAt;
     private List<Ability> abilities;
     private long[] abilityCooldowns; // Tracks when each ability can be used next (timestamp)
+    private Inventory inventory;
     
     public CharacterData() {
         // Default constructor for Kryo
         abilities = new ArrayList<>();
         abilityCooldowns = new long[4]; // Support up to 4 abilities
+        inventory = new Inventory();
     }
     
     public CharacterData(long id, String name, CharacterClass characterClass) {
@@ -47,7 +49,14 @@ public class CharacterData {
         this.createdAt = System.currentTimeMillis();
         this.abilities = new ArrayList<>();
         this.abilityCooldowns = new long[4];
+        this.inventory = new Inventory();
         initializeAbilities();
+        initializeInventory();
+    }
+    
+    private void initializeInventory() {
+        // Give starter items to new characters
+        ItemDatabase.giveStarterItems(inventory);
     }
     
     private void initializeAbilities() {
@@ -118,6 +127,9 @@ public class CharacterData {
     
     public long[] getAbilityCooldowns() { return abilityCooldowns; }
     public void setAbilityCooldowns(long[] abilityCooldowns) { this.abilityCooldowns = abilityCooldowns; }
+    
+    public Inventory getInventory() { return inventory; }
+    public void setInventory(Inventory inventory) { this.inventory = inventory; }
     
     /**
      * Check if an ability is off cooldown
