@@ -27,7 +27,11 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Range checking
   - Health bars above players
   - Death and auto-respawn mechanics
-- **Enhanced Graphics & Animations**: Immersive visual experience
+- **Enhanced Graphics & Animations**: Immersive visual experience with 3D-like assets
+  - **Texture-Based Rendering**: All game elements use procedurally generated textures instead of simple shapes
+  - **Character Sprites**: Each class has unique colored sprites with class-specific weapons
+  - **World Tiles**: Detailed grass, water, and path textures with depth and variation
+  - **Item Icons**: Professional-looking item icons for potions, weapons, and armor
   - Animated player sprites with idle, walking, and attacking states
   - Particle effects for combat hits, healing, movement trails
   - Ability visual effects (projectiles, beams, area effects, buffs)
@@ -35,20 +39,31 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Trees, rocks, flowers, water, and paths
   - Enhanced health bars with gradients and color coding
   - Camera shake effects on damage
+- **Minimap System**: Interactive world map
+  - Toggle between small and expanded views (M key)
+  - Shows player position and other players in real-time
+  - Displays world terrain (water, paths, grass)
+  - Gold border with professional styling
 - **Open World**: Tile-based world with player movement and multiplayer synchronization
 - **Chat System**: Real-time chat with other players
 - **Real-time Multiplayer**: See and interact with other players in the world
-- **Item and Inventory System**: Full inventory management
+- **Item and Inventory System**: Full inventory management with visual icons
   - 20-slot inventory with stackable items
   - Item rarity system (Common, Uncommon, Rare, Epic, Legendary)
   - Consumables, weapons, armor, materials, and quest items
-  - Gold currency system
+  - Gold currency system with coin icon display
   - Starter items for new characters
+  - Professional item icons for each item type
 - **Equipment System**: Equip weapons and armor for stat bonuses
   - Weapon and armor slots
   - Attack, defense, health, and mana bonuses
   - Auto-swap when equipping new items
   - Server-validated stat changes
+- **Enhanced UI Elements**:
+  - 3D-styled health and mana bars with gradient effects
+  - Currency display with gold coin icon
+  - Professional inventory interface with item icons
+  - Color-coded item rarity system
 
 ### Server Features
 - **Authentication Management**: Secure login and registration
@@ -169,6 +184,7 @@ Default test account:
 - **TAB**: Cycle through nearby targets
 - **T**: Target nearest player
 - **I**: Open/close inventory
+- **M**: Toggle minimap (small/expanded view)
 - **0-9**: Use item in inventory slot (when inventory is open)
 - **E+0-9**: Equip item from inventory slot (when inventory is open)
 - **U+W**: Unequip weapon (when inventory is open)
@@ -188,14 +204,15 @@ See [COMBAT_SYSTEM.md](COMBAT_SYSTEM.md) for detailed combat mechanics.
 
 ### Inventory System
 - Press **I** to open/close inventory
-- **20 slots** for items
+- **20 slots** for items with visual item icons
 - Press **0-9** to use consumable items in slots 0-9
 - Press **E+0-9** to equip weapons/armor from slots 0-9
 - Press **U+W** to unequip weapon, **U+A** to unequip armor
 - **Item Rarity**: Common (white), Uncommon (green), Rare (blue), Epic (purple), Legendary (orange)
 - **Item Types**: Consumables, Weapons, Armor, Materials, Quest items
-- **Gold**: Currency system for future trading
+- **Gold Display**: Currency shown with gold coin icon in top-right of inventory and main UI
 - **Starter Items**: New characters begin with health/mana potions, basic weapon and armor
+- **Visual Icons**: Each item type has a unique procedurally generated icon
 
 See [INVENTORY_SYSTEM.md](INVENTORY_SYSTEM.md) for detailed inventory mechanics.
 
@@ -208,6 +225,15 @@ See [INVENTORY_SYSTEM.md](INVENTORY_SYSTEM.md) for detailed inventory mechanics.
 - Equipment bonuses are applied immediately and validated server-side
 
 See [EQUIPMENT_SYSTEM.md](EQUIPMENT_SYSTEM.md) for detailed equipment mechanics.
+
+### Minimap System
+- Press **M** to toggle between small and expanded minimap views
+- **Small View**: Compact 150x150 pixel minimap in top-right corner
+- **Expanded View**: Large 400x400 pixel map for detailed navigation
+- **Real-time Updates**: Shows your position (cyan) and other players (red)
+- **Terrain Display**: Visualizes water areas, paths, and grass regions
+- **Professional Styling**: Gold border with gradient background
+- **Navigation Aid**: Perfect for exploring the 100x100 tile world
 
 ### Chat System
 - Press **ENTER** to activate chat
@@ -297,6 +323,10 @@ The game uses KryoNet for efficient client-server communication:
 - ~~Item and inventory system~~ ✅ **COMPLETED**
 - ~~Enhanced graphics and animations~~ ✅ **COMPLETED**
 - ~~Equipment system (equipping weapons/armor)~~ ✅ **COMPLETED**
+- ~~Texture-based assets (no LibGDX shapes)~~ ✅ **COMPLETED**
+- ~~Minimap for world navigation~~ ✅ **COMPLETED**
+- ~~3D-like visual styling~~ ✅ **COMPLETED**
+- ~~Item icons and professional UI~~ ✅ **COMPLETED**
 - Item trading between players
 - Quests and NPCs
 - Guilds and parties
@@ -313,4 +343,4 @@ This project is open source and available for educational purposes.
 
 ---
 
-**Note**: This is a beta version with **fully functional combat system**. The game includes core MMO features: authentication, character management, open world exploration, real-time multiplayer, and **complete PvP combat with skills, damage calculation, and death/respawn mechanics**.
+**Note**: This is a beta version with **fully functional combat system and professional 3D-like graphics**. The game includes core MMO features: authentication, character management, open world exploration with texture-based rendering, real-time multiplayer, **complete PvP combat with skills, damage calculation, and death/respawn mechanics**, enhanced UI with item icons, minimap navigation, and procedurally generated visual assets.

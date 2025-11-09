@@ -12,11 +12,14 @@ import com.esotericsoftware.kryonet.Connection;
 import com.esotericsoftware.kryonet.Listener;
 import com.mmo.game.MMOGame;
 import com.mmo.graphics.AbilityEffect;
+import com.mmo.graphics.AssetManager;
+import com.mmo.graphics.Minimap;
 import com.mmo.graphics.ParticleSystem;
 import com.mmo.graphics.PlayerAnimation;
 import com.mmo.models.Ability;
 import com.mmo.models.PlayerData;
 import com.mmo.network.Network;
+import com.mmo.world.TextureWorldRenderer;
 import com.mmo.world.WorldRenderer;
 
 import java.util.HashMap;
@@ -30,10 +33,13 @@ public class GameScreen implements Screen {
     private final PlayerData playerData;
     private final OrthographicCamera camera;
     private final WorldRenderer worldRenderer;
+    private final TextureWorldRenderer textureWorldRenderer;
     private final ParticleSystem particleSystem;
     private final PlayerAnimation playerAnimation;
     private final Map<Long, PlayerAnimation> otherPlayerAnimations;
     private final AbilityEffect abilityEffect;
+    private final AssetManager assetManager;
+    private final Minimap minimap;
     
     private Map<Long, Network.PlayerUpdate> otherPlayers;
     private Vector2 playerPosition;
@@ -63,6 +69,9 @@ public class GameScreen implements Screen {
         camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         
         worldRenderer = new WorldRenderer();
+        textureWorldRenderer = new TextureWorldRenderer();
+        assetManager = AssetManager.getInstance();
+        minimap = new Minimap();
         particleSystem = new ParticleSystem();
         playerAnimation = new PlayerAnimation();
         otherPlayerAnimations = new HashMap<>();
@@ -355,6 +364,7 @@ public class GameScreen implements Screen {
             handleMovementInput(delta);
             handleAbilityInput();
             handleTargetSelection();
+            handleMinimapInput();
         }
         handleChatInput();
         handleInventoryInput();
@@ -738,6 +748,18 @@ public class GameScreen implements Screen {
         game.client.sendTCP(chatMsg);
     }
     
+    private void handleMinimapInput() {
+        // Toggle minimap size with 'M' key
+        if (Gdx.input.isKeyJustPressed(Input.Keys.M)) {
+            minimap.toggleExpanded();
+            if (minimap.isExpanded()) {
+                addChatMessage("Minimap expanded");
+            } else {
+                addChatMessage("Minimap minimized");
+            }
+        }
+    }
+    
     private void draw() {
         Gdx.gl.glClearColor(0.2f, 0.6f, 0.3f, 1); // Green background for grass
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -746,8 +768,8 @@ public class GameScreen implements Screen {
         game.batch.setProjectionMatrix(camera.combined);
         game.shapeRenderer.setProjectionMatrix(camera.combined);
         
-        // Draw world
-        worldRenderer.render(game.shapeRenderer, camera);
+        // Draw world using texture-based renderer
+        textureWorldRenderer.render(game.batch, game.shapeRenderer, camera);
         
         // Draw players
         drawPlayers();
@@ -766,31 +788,36 @@ public class GameScreen implements Screen {
         abilityEffect.render(game.shapeRenderer);
         
         game.shapeRenderer.end();
+        
+        // Draw character sprites using batch
+        game.batch.begin();
+        
+        // Draw other players with character sprites
+        for (Network.PlayerUpdate player : otherPlayers.values()) {
+            // Get character texture (assuming we know their class somehow, default to WARRIOR for now)
+            com.badlogic.gdx.graphics.Texture charTexture = assetManager.getCharacterTexture(com.mmo.models.CharacterClass.WARRIOR);
+            game.batch.draw(charTexture, player.x - 16, player.y - 24, 32, 48);
+        }
+        
+        // Draw local player with correct character sprite
+        com.badlogic.gdx.graphics.Texture playerTexture = assetManager.getCharacterTexture(playerData.getCharacter().getCharacterClass());
+        game.batch.draw(playerTexture, playerPosition.x - 16, playerPosition.y - 24, 32, 48);
+        
+        game.batch.end();
+        
+        // Draw health bars and selection highlights
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        // Draw other players with animations
         for (Network.PlayerUpdate player : otherPlayers.values()) {
             // Highlight selected target
             if (player.playerId == selectedTargetId) {
-                game.shapeRenderer.setColor(Color.YELLOW);
-                game.shapeRenderer.circle(player.x, player.y, 25); // Outer highlight circle
-            }
-            
-            // Use animation for other players
-            PlayerAnimation anim = otherPlayerAnimations.get(player.playerId);
-            if (anim != null) {
-                anim.render(game.shapeRenderer, player.x, player.y, Color.RED, 20);
-            } else {
-                game.shapeRenderer.setColor(Color.RED);
-                game.shapeRenderer.circle(player.x, player.y, 20);
+                game.shapeRenderer.setColor(1f, 1f, 0f, 0.3f);
+                game.shapeRenderer.circle(player.x, player.y, 30); // Outer highlight circle
             }
             
             // Draw health bar
             drawHealthBar(player.x, player.y, player.health, player.maxHealth);
         }
-        
-        // Draw local player with animation
-        playerAnimation.render(game.shapeRenderer, playerPosition.x, playerPosition.y, Color.BLUE, 20);
         
         // Draw local player health bar
         drawHealthBar(playerPosition.x, playerPosition.y, 
@@ -854,6 +881,90 @@ public class GameScreen implements Screen {
         game.shapeRenderer.rect(x + barWidth / 2, y + 30, 1, barHeight); // Right
     }
     
+    private void drawEnhancedHealthManaBar(float x, float y) {
+        float barWidth = 200;
+        float barHeight = 20;
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        // Health bar
+        float healthPercent = (float)playerData.getCharacter().getHealth() / playerData.getCharacter().getMaxHealth();
+        
+        // Shadow
+        game.shapeRenderer.setColor(0, 0, 0, 0.6f);
+        game.shapeRenderer.rect(x + 3, y - 3, barWidth, barHeight);
+        
+        // Background
+        game.shapeRenderer.setColor(0.2f, 0.05f, 0.05f, 0.9f);
+        game.shapeRenderer.rect(x, y, barWidth, barHeight);
+        
+        // Health fill with gradient effect
+        for (int i = 0; i < barHeight; i++) {
+            float gradient = 1.0f - (i / barHeight) * 0.3f;
+            Color healthColor;
+            if (healthPercent > 0.6f) {
+                healthColor = new Color(0f, 0.8f * gradient, 0f, 1f);
+            } else if (healthPercent > 0.3f) {
+                healthColor = new Color(1f * gradient, 0.8f * gradient, 0f, 1f);
+            } else {
+                healthColor = new Color(1f * gradient, 0.2f * gradient, 0f, 1f);
+            }
+            game.shapeRenderer.setColor(healthColor);
+            game.shapeRenderer.rect(x, y + i, barWidth * healthPercent, 1);
+        }
+        
+        // Border
+        game.shapeRenderer.end();
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        game.shapeRenderer.setColor(Color.BLACK);
+        game.shapeRenderer.rect(x, y, barWidth, barHeight);
+        game.shapeRenderer.end();
+        
+        // Health text
+        game.batch.begin();
+        game.font.getData().setScale(0.9f);
+        game.font.setColor(Color.WHITE);
+        String healthText = "HP: " + playerData.getCharacter().getHealth() + "/" + playerData.getCharacter().getMaxHealth();
+        game.font.draw(game.batch, healthText, x + 5, y + 14);
+        game.batch.end();
+        
+        // Mana bar
+        float manaY = y - 30;
+        float manaPercent = (float)playerData.getCharacter().getMana() / playerData.getCharacter().getMaxMana();
+        
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        
+        // Shadow
+        game.shapeRenderer.setColor(0, 0, 0, 0.6f);
+        game.shapeRenderer.rect(x + 3, manaY - 3, barWidth, barHeight);
+        
+        // Background
+        game.shapeRenderer.setColor(0.05f, 0.05f, 0.2f, 0.9f);
+        game.shapeRenderer.rect(x, manaY, barWidth, barHeight);
+        
+        // Mana fill with gradient effect
+        for (int i = 0; i < barHeight; i++) {
+            float gradient = 1.0f - (i / barHeight) * 0.3f;
+            game.shapeRenderer.setColor(0.2f * gradient, 0.4f * gradient, 1f * gradient, 1f);
+            game.shapeRenderer.rect(x, manaY + i, barWidth * manaPercent, 1);
+        }
+        
+        // Border
+        game.shapeRenderer.end();
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+        game.shapeRenderer.setColor(Color.BLACK);
+        game.shapeRenderer.rect(x, manaY, barWidth, barHeight);
+        game.shapeRenderer.end();
+        
+        // Mana text
+        game.batch.begin();
+        game.font.getData().setScale(0.9f);
+        game.font.setColor(Color.WHITE);
+        String manaText = "MP: " + playerData.getCharacter().getMana() + "/" + playerData.getCharacter().getMaxMana();
+        game.font.draw(game.batch, manaText, x + 5, manaY + 14);
+        game.batch.end();
+    }
+    
     private void drawUI() {
         // Reset to screen coordinates
         game.batch.getProjectionMatrix().setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -861,7 +972,7 @@ public class GameScreen implements Screen {
         
         game.batch.begin();
         
-        // Draw character stats
+        // Draw character stats with enhanced bars
         game.font.getData().setScale(1.2f);
         game.font.setColor(Color.WHITE);
         float uiX = 10;
@@ -869,8 +980,20 @@ public class GameScreen implements Screen {
         
         game.font.draw(game.batch, playerData.getCharacter().getName(), uiX, uiY);
         game.font.draw(game.batch, "Level: " + playerData.getCharacter().getLevel(), uiX, uiY - 25);
-        game.font.draw(game.batch, "HP: " + playerData.getCharacter().getHealth() + "/" + playerData.getCharacter().getMaxHealth(), uiX, uiY - 50);
-        game.font.draw(game.batch, "MP: " + playerData.getCharacter().getMana() + "/" + playerData.getCharacter().getMaxMana(), uiX, uiY - 75);
+        
+        game.batch.end();
+        
+        // Draw enhanced health and mana bars with 3D styling
+        drawEnhancedHealthManaBar(uiX, uiY - 55);
+        
+        game.batch.begin();
+        
+        // Draw gold/currency
+        com.badlogic.gdx.graphics.Texture goldIcon = assetManager.getGoldCoinTexture();
+        game.batch.draw(goldIcon, uiX + 180, uiY - 85, 20, 20);
+        game.font.getData().setScale(1f);
+        game.font.setColor(Color.GOLD);
+        game.font.draw(game.batch, String.valueOf(playerData.getCharacter().getInventory().getGold()), uiX + 205, uiY - 68);
         
         // Draw abilities with enhanced styling
         game.font.setColor(Color.GOLD);
@@ -1039,7 +1162,7 @@ public class GameScreen implements Screen {
         // Draw controls
         game.font.setColor(Color.LIGHT_GRAY);
         game.font.getData().setScale(0.8f);
-        game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | TAB/T: Target | I: Inventory | ENTER: Chat | ESC: Exit", 10, 30);
+        game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | TAB/T: Target | I: Inventory | M: Map | ENTER: Chat | ESC: Exit", 10, 30);
         
         // Draw inventory if open
         if (inventoryOpen) {
@@ -1047,6 +1170,9 @@ public class GameScreen implements Screen {
         }
         
         game.batch.end();
+        
+        // Draw minimap
+        minimap.render(game.shapeRenderer, playerPosition, otherPlayers, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
     }
     
     private void drawInventory() {
@@ -1192,10 +1318,10 @@ public class GameScreen implements Screen {
         Gdx.gl.glLineWidth(1);
         game.shapeRenderer.end();
         
-        // Begin batch again for item text
+        // Begin batch again for item text and icons
         game.batch.begin();
         
-        // Draw items in inventory
+        // Draw items in inventory with actual icons
         game.font.getData().setScale(0.85f);
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < columns; col++) {
@@ -1215,17 +1341,19 @@ public class GameScreen implements Screen {
                 
                 com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
                 if (invItem != null) {
-                    // Draw item icon representation
-                    String itemIcon = getItemIcon(invItem.getItem().getType());
-                    game.font.getData().setScale(2.0f);
-                    Color rarityColor = getRarityColor(invItem.getItem().getRarity());
-                    game.font.setColor(0, 0, 0, 0.8f);
-                    game.font.draw(game.batch, itemIcon, slotX + slotSize / 2 - 11, slotY + slotSize / 2 + 9);
-                    game.font.setColor(rarityColor);
-                    game.font.draw(game.batch, itemIcon, slotX + slotSize / 2 - 12, slotY + slotSize / 2 + 10);
+                    // Draw item icon texture
+                    com.badlogic.gdx.graphics.Texture itemIcon = assetManager.getItemTexture(invItem.getItem().getName());
+                    if (itemIcon != null) {
+                        // Add rarity tint
+                        Color rarityColor = getRarityColor(invItem.getItem().getRarity());
+                        game.batch.setColor(rarityColor);
+                        game.batch.draw(itemIcon, slotX + slotSize / 2 - 16, slotY + slotSize / 2 - 8, 32, 32);
+                        game.batch.setColor(Color.WHITE);
+                    }
                     
                     // Draw item name
                     game.font.getData().setScale(0.7f);
+                    Color rarityColor = getRarityColor(invItem.getItem().getRarity());
                     game.font.setColor(0, 0, 0, 0.9f);
                     String itemName = invItem.getItem().getName();
                     if (itemName.length() > 9) {
