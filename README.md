@@ -2,6 +2,18 @@
 
 A fully-featured 2D MMO game built with LibGDX, featuring an open world, character classes with abilities, multiplayer networking, and a dedicated server with monitoring capabilities.
 
+## 🆕 NEW: 3D-Style Graphics System!
+
+**The game now features a complete 3D-style visual overhaul:**
+- ✨ **NO GRID LINES** - Seamless textured world rendering
+- 🏰 **Buildings** - Castles, towers, shops, and houses with isometric depth
+- 👤 **3D Character Sprites** - Detailed class-specific character models
+- 🌳 **Rich Environment** - Trees, rocks, bushes, flowers with shadows
+- 🗺️ **Textured Terrain** - Grass, dirt, stone, and water tiles
+- 🎨 **Procedural Generation** - All graphics generated at runtime (no external images!)
+
+See [3D_GRAPHICS_SYSTEM.md](3D_GRAPHICS_SYSTEM.md) and [3D_FEATURES_SUMMARY.md](3D_FEATURES_SUMMARY.md) for full details.
+
 ## Features
 
 ### Client Features
@@ -12,9 +24,9 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Character creation with detailed class selection
   - Support for up to 5 characters per account
 - **Character Classes**: 5 unique classes with distinct abilities and stats:
-  - **Warrior**: High health and defense melee fighter
-  - **Mage**: Powerful spell caster with arcane abilities
-  - **Archer**: Precision ranged fighter with agility
+  - **Warrior**: High health and defense melee fighter with metallic armor and shield
+  - **Mage**: Powerful spell caster with purple robes, wizard hat, and magical orb
+  - **Archer**: Precision ranged fighter with leather armor, bow, and quiver
   - **Rogue**: Stealthy assassin with critical strikes
   - **Cleric**: Holy warrior with healing and support abilities
 - **Ability System**: Each class has 4 unique abilities with detailed descriptions
@@ -27,15 +39,17 @@ A fully-featured 2D MMO game built with LibGDX, featuring an open world, charact
   - Range checking
   - Health bars above players
   - Death and auto-respawn mechanics
-- **Enhanced Graphics & Animations**: Immersive visual experience
-  - Animated player sprites with idle, walking, and attacking states
+- **Enhanced 3D-Style Graphics & Animations**: Immersive visual experience
+  - 3D isometric character sprites with class-specific designs
+  - Detailed buildings (castles, towers, shops, houses)
+  - Rich environment (trees, rocks, bushes, flowers)
+  - Textured terrain tiles (grass, dirt, stone, water)
   - Particle effects for combat hits, healing, movement trails
   - Ability visual effects (projectiles, beams, area effects, buffs)
-  - Procedurally generated world with varied terrain
-  - Trees, rocks, flowers, water, and paths
   - Enhanced health bars with gradients and color coding
   - Camera shake effects on damage
-- **Open World**: Tile-based world with player movement and multiplayer synchronization
+  - **NO GRID LINES** - Seamless world rendering
+- **Open World**: Texture-based world with player movement and multiplayer synchronization
 - **Chat System**: Real-time chat with other players
 - **Real-time Multiplayer**: See and interact with other players in the world
 - **Item and Inventory System**: Full inventory management

@@ -6,6 +6,7 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Vector2;
 import com.esotericsoftware.kryonet.Connection;
@@ -14,6 +15,7 @@ import com.mmo.game.MMOGame;
 import com.mmo.graphics.AbilityEffect;
 import com.mmo.graphics.ParticleSystem;
 import com.mmo.graphics.PlayerAnimation;
+import com.mmo.graphics.TextureGenerator;
 import com.mmo.models.Ability;
 import com.mmo.models.PlayerData;
 import com.mmo.network.Network;
@@ -23,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Main game screen - open world gameplay
+ * Main game screen - open world gameplay with 3D-style graphics
  */
 public class GameScreen implements Screen {
     private final MMOGame game;
@@ -34,6 +36,10 @@ public class GameScreen implements Screen {
     private final PlayerAnimation playerAnimation;
     private final Map<Long, PlayerAnimation> otherPlayerAnimations;
     private final AbilityEffect abilityEffect;
+    
+    // Character textures
+    private Texture playerTexture;
+    private Map<Long, Texture> otherPlayerTextures;
     
     private Map<Long, Network.PlayerUpdate> otherPlayers;
     private Vector2 playerPosition;
@@ -66,8 +72,13 @@ public class GameScreen implements Screen {
         particleSystem = new ParticleSystem();
         playerAnimation = new PlayerAnimation();
         otherPlayerAnimations = new HashMap<>();
+        otherPlayerTextures = new HashMap<>();
         abilityEffect = new AbilityEffect();
         otherPlayers = new HashMap<>();
+        
+        // Generate player texture based on class
+        String className = playerData.getCharacter().getCharacterClass().getName();
+        playerTexture = TextureGenerator.generateCharacterSprite(className, 0);
         
         playerPosition = new Vector2(playerData.getCharacter().getX(), playerData.getCharacter().getY());
         playerVelocity = new Vector2(0, 0);
@@ -744,12 +755,11 @@ public class GameScreen implements Screen {
         
         // Set camera
         game.batch.setProjectionMatrix(camera.combined);
-        game.shapeRenderer.setProjectionMatrix(camera.combined);
         
-        // Draw world
-        worldRenderer.render(game.shapeRenderer, camera);
+        // Draw world with textures (NO GRIDS)
+        worldRenderer.render(camera);
         
-        // Draw players
+        // Draw players with sprites
         drawPlayers();
         
         // Draw UI (fixed position)
@@ -757,46 +767,52 @@ public class GameScreen implements Screen {
     }
     
     private void drawPlayers() {
+        // Draw particles and effects first
+        game.shapeRenderer.setProjectionMatrix(camera.combined);
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-        
-        // Draw particles first (under players)
         particleSystem.render(game.shapeRenderer);
-        
-        // Draw ability effects
         abilityEffect.render(game.shapeRenderer);
-        
         game.shapeRenderer.end();
-        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         
-        // Draw other players with animations
+        // Draw character sprites
+        game.batch.begin();
+        
+        // Draw other players with 3D sprites
         for (Network.PlayerUpdate player : otherPlayers.values()) {
-            // Highlight selected target
+            // Get or create texture for this player
+            Texture otherTexture = otherPlayerTextures.get(player.playerId);
+            if (otherTexture == null) {
+                // Determine class from player data (default to warrior if not available)
+                String className = "warrior"; // You might want to send class info in PlayerUpdate
+                otherTexture = TextureGenerator.generateCharacterSprite(className, 0);
+                otherPlayerTextures.put(player.playerId, otherTexture);
+            }
+            
+            // Draw selection highlight
             if (player.playerId == selectedTargetId) {
-                game.shapeRenderer.setColor(Color.YELLOW);
-                game.shapeRenderer.circle(player.x, player.y, 25); // Outer highlight circle
-            }
-            
-            // Use animation for other players
-            PlayerAnimation anim = otherPlayerAnimations.get(player.playerId);
-            if (anim != null) {
-                anim.render(game.shapeRenderer, player.x, player.y, Color.RED, 20);
+                game.batch.setColor(1f, 1f, 0f, 0.5f); // Yellow tint for selection
             } else {
-                game.shapeRenderer.setColor(Color.RED);
-                game.shapeRenderer.circle(player.x, player.y, 20);
+                game.batch.setColor(Color.WHITE);
             }
             
-            // Draw health bar
-            drawHealthBar(player.x, player.y, player.health, player.maxHealth);
+            // Draw the sprite (centered on position)
+            game.batch.draw(otherTexture, player.x - 32, player.y - 32, 64, 64);
+            game.batch.setColor(Color.WHITE);
         }
         
-        // Draw local player with animation
-        playerAnimation.render(game.shapeRenderer, playerPosition.x, playerPosition.y, Color.BLUE, 20);
+        // Draw local player sprite
+        game.batch.draw(playerTexture, playerPosition.x - 32, playerPosition.y - 32, 64, 64);
         
-        // Draw local player health bar
+        game.batch.end();
+        
+        // Draw health bars
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (Network.PlayerUpdate player : otherPlayers.values()) {
+            drawHealthBar(player.x, player.y, player.health, player.maxHealth);
+        }
         drawHealthBar(playerPosition.x, playerPosition.y, 
                      playerData.getCharacter().getHealth(), 
                      playerData.getCharacter().getMaxHealth());
-        
         game.shapeRenderer.end();
         
         // Draw player names
@@ -1395,5 +1411,12 @@ public class GameScreen implements Screen {
     public void hide() {}
     
     @Override
-    public void dispose() {}
+    public void dispose() {
+        worldRenderer.dispose();
+        playerTexture.dispose();
+        for (Texture texture : otherPlayerTextures.values()) {
+            texture.dispose();
+        }
+        otherPlayerTextures.clear();
+    }
 }
