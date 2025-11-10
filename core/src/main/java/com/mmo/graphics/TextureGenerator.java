@@ -566,6 +566,9 @@ public class TextureGenerator {
             case "flower":
                 drawFlower3D(pixmap, size);
                 break;
+            case "mountain":
+                drawMountain3D(pixmap, size);
+                break;
             default:
                 drawTree3D(pixmap, size);
         }
@@ -699,6 +702,49 @@ public class TextureGenerator {
         // Flower center
         pixmap.setColor(0.95f, 0.85f, 0.2f, 1f);
         fillCircle(pixmap, centerX, baseY + 26, 3);
+    }
+    
+    private static void drawMountain3D(Pixmap pixmap, int size) {
+        int centerX = size / 2;
+        int baseY = size - 10;
+        
+        // Mountain shadow
+        pixmap.setColor(0, 0, 0, 0.4f);
+        fillEllipse(pixmap, centerX, baseY - 5, 35, 12);
+        
+        // Main mountain body - rocky texture
+        pixmap.setColor(0.4f, 0.35f, 0.3f, 1f);
+        fillTriangle(pixmap, centerX - 30, baseY, centerX + 30, baseY, centerX, baseY - 45);
+        
+        // Mountain ridges and texture
+        pixmap.setColor(0.45f, 0.4f, 0.35f, 1f);
+        fillTriangle(pixmap, centerX - 25, baseY, centerX + 25, baseY, centerX, baseY - 40);
+        
+        // Snow cap
+        pixmap.setColor(0.95f, 0.95f, 1f, 1f);
+        fillTriangle(pixmap, centerX - 12, baseY - 35, centerX + 12, baseY - 35, centerX, baseY - 50);
+        
+        // Snow highlights
+        pixmap.setColor(1f, 1f, 1f, 0.8f);
+        fillTriangle(pixmap, centerX - 8, baseY - 38, centerX + 8, baseY - 38, centerX, baseY - 48);
+        
+        // Rocky texture on mountain face
+        pixmap.setColor(0.35f, 0.3f, 0.25f, 1f);
+        for (int i = 0; i < 8; i++) {
+            int x = centerX - 20 + i * 6;
+            int y = baseY - 10 - (i * 3);
+            fillCircle(pixmap, x, y, 2 + (i % 2));
+        }
+        
+        // Mountain shadows for depth
+        pixmap.setColor(0.25f, 0.2f, 0.15f, 0.7f);
+        fillTriangle(pixmap, centerX + 5, baseY - 20, centerX + 25, baseY, centerX + 20, baseY - 35);
+        
+        // Additional texture details
+        pixmap.setColor(0.5f, 0.45f, 0.4f, 0.6f);
+        fillCircle(pixmap, centerX - 10, baseY - 20, 3);
+        fillCircle(pixmap, centerX + 8, baseY - 25, 2);
+        fillCircle(pixmap, centerX - 5, baseY - 30, 2);
     }
     
     /**

@@ -60,13 +60,15 @@ public class GameScreen implements Screen {
     
     private boolean inventoryOpen = false; // Inventory UI state
     private int selectedInventorySlot = -1; // Currently selected inventory slot
+    private int hoveredInventorySlot = -1; // Currently hovered inventory slot
+    private boolean mouseDragged = false; // Track if mouse is being dragged
     
     public GameScreen(MMOGame game, PlayerData playerData) {
         this.game = game;
         this.playerData = playerData;
         
         camera = new OrthographicCamera();
-        camera.setToOrtho(false, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        camera.setToOrtho(true, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         
         worldRenderer = new WorldRenderer();
         particleSystem = new ParticleSystem();
@@ -291,7 +293,7 @@ public class GameScreen implements Screen {
     
     private void handleEquipItemResponse(Network.EquipItemResponse response) {
         if (response.success) {
-            // Update local character with updated stats from server
+            // Update local Character with updated stats from server
             if (response.updatedCharacter != null) {
                 playerData.setCharacter(response.updatedCharacter);
             }
@@ -305,7 +307,7 @@ public class GameScreen implements Screen {
     
     private void handleUnequipItemResponse(Network.UnequipItemResponse response) {
         if (response.success) {
-            // Update local character with updated stats from server
+            // Update local Character with updated stats from server
             if (response.updatedCharacter != null) {
                 playerData.setCharacter(response.updatedCharacter);
             }
@@ -369,6 +371,7 @@ public class GameScreen implements Screen {
         }
         handleChatInput();
         handleInventoryInput();
+        handleMouseInput();
         
         // Update camera to follow player with shake
         camera.position.set(playerPosition.x + cameraOffset.x, playerPosition.y + cameraOffset.y, 0);
@@ -379,10 +382,10 @@ public class GameScreen implements Screen {
         playerVelocity.set(0, 0);
         
         if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            playerVelocity.y = moveSpeed;
+            playerVelocity.y = -moveSpeed;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            playerVelocity.y = -moveSpeed;
+            playerVelocity.y = moveSpeed;
         }
         if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             playerVelocity.x = -moveSpeed;
@@ -741,6 +744,101 @@ public class GameScreen implements Screen {
         game.client.sendTCP(request);
     }
     
+    private void handleMouseInput() {
+        int mouseX = Gdx.input.getX();
+        int mouseY = Gdx.graphics.getHeight() - Gdx.input.getY(); // Flip Y coordinate
+        
+        // Handle inventory mouse interactions
+        if (inventoryOpen) {
+            handleInventoryMouseInteraction(mouseX, mouseY);
+        }
+        
+        // Handle ability slot mouse interactions
+        handleAbilityMouseInteraction(mouseX, mouseY);
+        
+        // Track mouse drag state
+        mouseDragged = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
+    }
+    
+    private void handleInventoryMouseInteraction(int mouseX, int mouseY) {
+        int screenWidth = Gdx.graphics.getWidth();
+        int screenHeight = Gdx.graphics.getHeight();
+        
+        // Inventory panel dimensions
+        int panelWidth = 650;
+        int panelHeight = 500;
+        int panelX = (screenWidth - panelWidth) / 2;
+        int panelY = (screenHeight - panelHeight) / 2;
+        
+        // Inventory grid dimensions
+        int slotSize = 75;
+        int slotPadding = 12;
+        int columns = 4;
+        int rows = 5;
+        int gridStartX = panelX + 35;
+        int gridStartY = panelY + panelHeight - 90;
+        
+        // Check if mouse is over inventory grid
+        if (mouseX >= gridStartX && mouseX <= gridStartX + columns * (slotSize + slotPadding) &&
+            mouseY >= gridStartY - rows * (slotSize + slotPadding) && mouseY <= gridStartY) {
+            
+            // Calculate which slot is hovered
+            int col = (mouseX - gridStartX) / (slotSize + slotPadding);
+            int row = (gridStartY - mouseY) / (slotSize + slotPadding);
+            
+            if (col >= 0 && col < columns && row >= 0 && row < rows) {
+                int slotIndex = row * columns + col;
+                hoveredInventorySlot = slotIndex;
+                
+                // Handle mouse click on inventory slot
+                if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                    if (selectedInventorySlot == slotIndex) {
+                        // Double click - use item
+                        useInventoryItem(slotIndex);
+                        selectedInventorySlot = -1;
+                    } else {
+                        // Select slot
+                        selectedInventorySlot = slotIndex;
+                    }
+                } else if (Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
+                    // Right click - equip/unequip item
+                    com.mmo.models.InventoryItem invItem = playerData.getCharacter().getInventory().getItemAtSlot(slotIndex);
+                    if (invItem != null) {
+                        com.mmo.models.ItemType type = invItem.getItem().getType();
+                        if (type == com.mmo.models.ItemType.WEAPON || type == com.mmo.models.ItemType.ARMOR) {
+                            equipInventoryItem(slotIndex);
+                        } else if (type == com.mmo.models.ItemType.CONSUMABLE) {
+                            useInventoryItem(slotIndex);
+                        }
+                    }
+                }
+            }
+        } else {
+            hoveredInventorySlot = -1;
+        }
+    }
+    
+    private void handleAbilityMouseInteraction(int mouseX, int mouseY) {
+        float uiX = 10;
+        float uiY = Gdx.graphics.getHeight() - 10;
+        
+        if (playerData.getCharacter().getAbilities() != null) {
+            for (int i = 0; i < Math.min(4, playerData.getCharacter().getAbilities().size()); i++) {
+                float abilityY = uiY - 140 - (i * 45);
+                
+                // Check if mouse is over ability slot
+                if (mouseX >= uiX && mouseX <= uiX + 200 &&
+                    mouseY >= abilityY - 35 && mouseY <= abilityY) {
+                    
+                    // Handle mouse click on ability
+                    if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                        useAbility(i);
+                    }
+                }
+            }
+        }
+    }
+    
     private void sendChatMessage(String message) {
         Network.ChatMessage chatMsg = new Network.ChatMessage();
         chatMsg.sender = playerData.getCharacter().getName();
@@ -857,12 +955,16 @@ public class GameScreen implements Screen {
         
         game.shapeRenderer.setColor(healthColor);
         game.shapeRenderer.rect(x - barWidth / 2, y + 30, barWidth * healthPercent, barHeight);
+        game.shapeRenderer.end();
         
         // Highlight on top of health bar
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
         game.shapeRenderer.setColor(1, 1, 1, 0.3f);
         game.shapeRenderer.rect(x - barWidth / 2, y + 30 + barHeight - 1, barWidth * healthPercent, 1);
+        game.shapeRenderer.end();
         
         // Border
+        game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         game.shapeRenderer.setColor(Color.BLACK);
         game.shapeRenderer.rect(x - barWidth / 2 - 1, y + 30 - 1, barWidth + 2, 1); // Top
         game.shapeRenderer.rect(x - barWidth / 2 - 1, y + 30 + barHeight, barWidth + 2, 1); // Bottom
@@ -932,6 +1034,26 @@ public class GameScreen implements Screen {
             }
         }
         game.shapeRenderer.end();
+        
+        // Draw ability slot hover effects
+        if (playerData.getCharacter().getAbilities() != null) {
+            game.shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+            int mouseX = Gdx.input.getX();
+            int mouseY = Gdx.graphics.getHeight() - Gdx.input.getY();
+            
+            for (int i = 0; i < Math.min(4, playerData.getCharacter().getAbilities().size()); i++) {
+                float abilityY = uiY - 140 - (i * 45);
+                
+                // Check if mouse is over ability slot and add hover effect
+                if (mouseX >= uiX && mouseX <= uiX + 200 &&
+                    mouseY >= abilityY - 35 && mouseY <= abilityY) {
+                    
+                    game.shapeRenderer.setColor(1f, 1f, 0.5f, 0.2f); // Yellow hover
+                    game.shapeRenderer.rect(uiX, abilityY - 35, 200, 38);
+                }
+            }
+            game.shapeRenderer.end();
+        }
         
         game.shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
         if (playerData.getCharacter().getAbilities() != null) {
@@ -1052,10 +1174,11 @@ public class GameScreen implements Screen {
             game.font.draw(game.batch, "Say: " + chatMessage + "_", 10, 160);
         }
         
-        // Draw controls
+        // Draw controls with mouse instructions
         game.font.setColor(Color.LIGHT_GRAY);
         game.font.getData().setScale(0.8f);
         game.font.draw(game.batch, "WASD: Move | 1-4: Abilities | TAB/T: Target | I: Inventory | ENTER: Chat | ESC: Exit", 10, 30);
+        game.font.draw(game.batch, "Mouse: Left Click to Select/Use | Right Click to Equip/Use | Hover for info", 10, 50);
         
         // Draw inventory if open
         if (inventoryOpen) {
@@ -1170,6 +1293,18 @@ public class GameScreen implements Screen {
                     game.shapeRenderer.setColor(0.25f, 0.25f, 0.28f, 0.6f);
                 }
                 game.shapeRenderer.rect(slotX + 2, slotY + 2, slotSize - 4, slotSize - 4);
+                
+                // Highlight hovered slot
+                if (slotIndex == hoveredInventorySlot) {
+                    game.shapeRenderer.setColor(1f, 1f, 0.8f, 0.3f); // Yellow highlight
+                    game.shapeRenderer.rect(slotX, slotY, slotSize, slotSize);
+                }
+                
+                // Highlight selected slot
+                if (slotIndex == selectedInventorySlot) {
+                    game.shapeRenderer.setColor(1f, 1f, 0f, 0.5f); // Gold selection
+                    game.shapeRenderer.rect(slotX - 2, slotY - 2, slotSize + 4, slotSize + 4);
+                }
             }
         }
         
@@ -1333,6 +1468,7 @@ public class GameScreen implements Screen {
             game.font.getData().setScale(0.85f);
             game.font.setColor(Color.DARK_GRAY);
             game.font.draw(game.batch, "Weapon: Empty", equipX, equipY);
+            game.font.getData().setScale(0.95f);
         }
         
         // Show equipped armor with icon
@@ -1370,35 +1506,36 @@ public class GameScreen implements Screen {
             game.font.getData().setScale(0.85f);
             game.font.setColor(Color.DARK_GRAY);
             game.font.draw(game.batch, "Armor: Empty", equipX, equipY - 80);
+            game.font.getData().setScale(0.95f);
         }
     }
     
     // Get simple icon representation for item types
     private String getItemIcon(com.mmo.models.ItemType itemType) {
         switch (itemType) {
-            case WEAPON: return "⚔";
-            case ARMOR: return "🛡";
-            case CONSUMABLE: return "⚗";
-            case MATERIAL: return "◆";
-            case QUEST: return "★";
+            case com.mmo.models.ItemType.WEAPON: return "⚔";
+            case com.mmo.models.ItemType.ARMOR: return "🛡";
+            case com.mmo.models.ItemType.CONSUMABLE: return "⚗";
+            case com.mmo.models.ItemType.MATERIAL: return "◆";
+            case com.mmo.models.ItemType.QUEST: return "★";
             default: return "?";
         }
     }
     
     private Color getRarityColor(com.mmo.models.ItemRarity rarity) {
         switch (rarity) {
-            case COMMON: return Color.WHITE;
-            case UNCOMMON: return Color.GREEN;
-            case RARE: return Color.BLUE;
-            case EPIC: return Color.PURPLE;
-            case LEGENDARY: return Color.ORANGE;
+            case com.mmo.models.ItemRarity.COMMON: return Color.WHITE;
+            case com.mmo.models.ItemRarity.UNCOMMON: return Color.GREEN;
+            case com.mmo.models.ItemRarity.RARE: return Color.BLUE;
+            case com.mmo.models.ItemRarity.EPIC: return Color.PURPLE;
+            case com.mmo.models.ItemRarity.LEGENDARY: return Color.ORANGE;
             default: return Color.GRAY;
         }
     }
     
     @Override
     public void resize(int width, int height) {
-        camera.setToOrtho(false, width, height);
+        camera.setToOrtho(true, width, height);
     }
     
     @Override

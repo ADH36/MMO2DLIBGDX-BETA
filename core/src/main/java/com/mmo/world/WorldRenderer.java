@@ -26,6 +26,7 @@ public class WorldRenderer {
     private Texture rockTexture;
     private Texture bushTexture;
     private Texture flowerTexture;
+    private Texture mountainTexture;
     
     // Buildings
     private Texture houseTexture;
@@ -49,6 +50,7 @@ public class WorldRenderer {
         treeTexture = TextureGenerator.generateEnvironmentObject("tree");
         rockTexture = TextureGenerator.generateEnvironmentObject("rock");
         bushTexture = TextureGenerator.generateEnvironmentObject("bush");
+        mountainTexture = TextureGenerator.generateEnvironmentObject("mountain");
         flowerTexture = TextureGenerator.generateEnvironmentObject("flower");
         
         // Generate building textures
@@ -144,33 +146,51 @@ public class WorldRenderer {
             }
         }
         
+        // Draw mountains at map edges (background layer)
+        for (int mountainX = startX; mountainX < endX; mountainX++) {
+            for (int mountainY = startY; mountainY < endY; mountainY++) {
+                float mountainTileX = mountainX * TILE_SIZE;
+                float mountainTileY = mountainY * TILE_SIZE;
+                
+                // Draw mountains at the very edges of the world
+                if ((mountainX <= 2 || mountainX >= WORLD_WIDTH - 3 || mountainY <= 2 || mountainY >= WORLD_HEIGHT - 3)) {
+                    int mountainTerrain = getTerrainType(mountainX, mountainY);
+                    // Only draw mountains on certain tiles to create mountain ranges
+                    if ((mountainTerrain % 3) == 0) {
+                        // Scale mountains to be larger than regular tiles
+                        batch.draw(mountainTexture, mountainTileX - 32, mountainTileY - 32, 128, 128);
+                    }
+                }
+            }
+        }
+        
         // Draw environment decorations
-        for (int x = startX; x < endX; x++) {
-            for (int y = startY; y < endY; y++) {
-                float tileX = x * TILE_SIZE;
-                float tileY = y * TILE_SIZE;
-                int terrain = getTerrainType(x, y);
+        for (int envX = startX; envX < endX; envX++) {
+            for (int envY = startY; envY < endY; envY++) {
+                float envTileX = envX * TILE_SIZE;
+                float envTileY = envY * TILE_SIZE;
+                int envTerrain = getTerrainType(envX, envY);
                 
                 // Trees
-                if ((terrain % 7) == 0 && x > 10 && y > 10 && x < WORLD_WIDTH - 10 && y < WORLD_HEIGHT - 10) {
-                    if (!isPositionOccupiedByBuilding(tileX, tileY)) {
-                        batch.draw(treeTexture, tileX, tileY, 64, 64);
+                if ((envTerrain % 7) == 0 && envX > 10 && envY > 10 && envX < WORLD_WIDTH - 10 && envY < WORLD_HEIGHT - 10) {
+                    if (!isPositionOccupiedByBuilding(envTileX, envTileY)) {
+                        batch.draw(treeTexture, envTileX, envTileY, 64, 64);
                     }
                 }
                 
                 // Rocks
-                if ((terrain % 11) == 0 && !isPositionOccupiedByBuilding(tileX, tileY)) {
-                    batch.draw(rockTexture, tileX + (terrain % 10 - 5), tileY + (terrain % 8 - 4), 64, 64);
+                if ((envTerrain % 11) == 0 && !isPositionOccupiedByBuilding(envTileX, envTileY)) {
+                    batch.draw(rockTexture, envTileX + (envTerrain % 10 - 5), envTileY + (envTerrain % 8 - 4), 64, 64);
                 }
                 
                 // Bushes
-                if ((terrain % 17) == 0 && x > 8 && y > 8 && !isPositionOccupiedByBuilding(tileX, tileY)) {
-                    batch.draw(bushTexture, tileX + (terrain % 12 - 6), tileY + (terrain % 10 - 5), 64, 64);
+                if ((envTerrain % 17) == 0 && envX > 8 && envY > 8 && !isPositionOccupiedByBuilding(envTileX, envTileY)) {
+                    batch.draw(bushTexture, envTileX + (envTerrain % 12 - 6), envTileY + (envTerrain % 10 - 5), 64, 64);
                 }
                 
                 // Flowers
-                if ((terrain % 13) == 0 && (terrain % 2) == 0 && !isPositionOccupiedByBuilding(tileX, tileY)) {
-                    batch.draw(flowerTexture, tileX + (terrain % 15 - 7), tileY + (terrain % 12 - 6), 64, 64);
+                if ((envTerrain % 13) == 0 && (envTerrain % 2) == 0 && !isPositionOccupiedByBuilding(envTileX, envTileY)) {
+                    batch.draw(flowerTexture, envTileX + (envTerrain % 15 - 7), envTileY + (envTerrain % 12 - 6), 64, 64);
                 }
             }
         }
@@ -229,6 +249,7 @@ public class WorldRenderer {
         rockTexture.dispose();
         bushTexture.dispose();
         flowerTexture.dispose();
+        mountainTexture.dispose();
         houseTexture.dispose();
         shopTexture.dispose();
         towerTexture.dispose();
